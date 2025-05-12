@@ -1,0 +1,59 @@
+# Postprocessing yaml file
+
+
+################################ Paths ################################
+
+# Don't change the paths
+tier1_dir: '..\\workflow\\1_Experiment\\Executables'
+tier3a_dir: '..\\workflow\\1_Experiment\\Experimental_Platform\\Futures'
+outputs: '/Outputs'
+vis_dir: 'Visualizations'
+excel_data_file_dir:  '..\\workflow\\1_Experiment\\Experimental_Platform\\Futures\\'
+#######################################################################
+
+########################## Control Variables ###############################
+
+# Choose if want to delete or not the solver solutions files
+del_files: True
+execute_scenarios: ['All']
+scens: ['Scenario1']
+execute_futures: [2,4]
+model: 'MOMF'
+round_#: 4 # Number to round
+disc_rate: 0.0504
+year_apply_discount_rate: 2024 # Year to apply discount rate
+############################################################################
+
+############################# otoole configuration ###################################
+sets_otoole: [
+  YEAR,
+  TECHNOLOGY,
+  TIMESLICE,
+  FUEL,
+  EMISSION,
+  MODE_OF_OPERATION,
+  REGION,
+  SEASON,
+  DAYTYPE,
+  DAILYTIMEBRACKET,
+  STORAGE
+  ]
+
+parameters_reference : [
+  # 'AnnualTechnologyEmissionPenaltyByEmission',
+  'CapitalInvestment',
+  'OperatingCost',
+  'AnnualFixedOperatingCost',
+  'AnnualVariableOperatingCost'
+]
+parameters_news: [
+  # 'Externalities2024',
+  'Capex2024',
+  'Opex2024',
+  'FixedOpex2024',
+  'VarOpex2024'
+]
+this_combina: [
+  'Accidents', 'Health', 'Congestion', 'CONVAR', 'CONHICK', 'REHAB'
+  ]
+######################################################################################

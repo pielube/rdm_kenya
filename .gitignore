@@ -1,0 +1,5 @@
+results/*
+!results/.gitkeep
+
+/data_inherited_scenarios/
+

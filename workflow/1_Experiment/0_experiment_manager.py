@@ -1453,10 +1453,15 @@ if __name__ == '__main__':
                                     for s_set in range( len( Second_Involved ) ):
                                         tssecond = S_DICT_sets_structure['initial'][ S_DICT_sets_structure['set'].index(set2_by_param) ]
                                         this_set_second = Second_Involved[s_set]
+                                        if this_set_second == '1.0': # pietro temp patch
+                                            this_set_second = '1'
+                                        if this_set_second == '2.0': # pietro temp patch
+                                            this_set_second = '2'
                                         this_set_range_indices_second = [ i for i, x in enumerate( inherited_scenarios[ scenario_list[ s ] ][ f ][ this_parameter ][ tssecond ] ) if x == str( this_set_second ) ]
                                         #
                                         # find elements in common
                                         this_set_range_indices = list(set(this_set_range_indices_first) & set(this_set_range_indices_second))
+                                        
                                         if this_set_range_indices != []:
                                             this_set_range_indices.sort()
                                             # for each index we extract the time and value in a list:
@@ -1481,7 +1486,7 @@ if __name__ == '__main__':
                                             inherited_scenarios[ scenario_list[s] ][ f ][ this_parameter ]['value'][ this_set_range_indices[0]:this_set_range_indices[-1]+1 ] = deepcopy(new_value_list_rounded)
                                             # inherited_scenarios[ scenario_list[s] ][ f ][ this_parameter ]['value'][ this_set_range_indices[0]:this_set_range_indices[-1]+1 ] = deepcopy(new_value_list)
                                         else:
-                                            print(f'Combination of {set1_by_param}:{this_set_first} and {set2_by_param}:{this_set_second} to {this_parameter} does not have any values.')  
+                                            print(f'Combination of {set1_by_param}:{this_set_first} and {set2_by_param}:{this_set_second} to {this_parameter} does not have any values.')
                                         
                             elif number_sets_by_param == 3:  
                                 set1_by_param = df_Params_Sets_Vari.loc['Set1', this_parameter]

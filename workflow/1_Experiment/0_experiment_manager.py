@@ -1323,13 +1323,25 @@ if __name__ == '__main__':
                         
                         #------------------------------------------------------------------------------------------------------------------------------------------#
                         if Math_Type in ['Time_Series', 'Constant', 'Logistic', 'Linear'] and Explored_Parameter_of_X=='Final_Value':
-                            
-                            
-                            
+                                                        
                             number_sets_by_param = df_Params_Sets_Vari.loc['Number', this_parameter]
                               
+                            if number_sets_by_param == 0:
+                                
+                                # No need to iterate over sets as we are working with a global param                                
+                                # No need to "extract time" as we are working with a global param
+
+                                # extracting value:
+                                value_list = deepcopy( inherited_scenarios[ scenario_list[s] ][ f ][ this_parameter ]['value'])
+                                value_list = [ float( value_list[j] ) for j in range( len( value_list ) ) ]
+                                # assign new value
+                                new_value_list = [xx*float(Values_per_Future[fut_id]) for xx in value_list]
+                                new_value_list_rounded = [ round(elem, 3) for elem in new_value_list ]
+                                # Assign parameters back: for these subset of uncertainties
+                                inherited_scenarios[ scenario_list[s] ][ f ][ this_parameter ]['value'] = deepcopy(new_value_list_rounded)
+
+                            elif number_sets_by_param == 1:                                    
                             
-                            if number_sets_by_param == 1:
                                 set1_by_param = df_Params_Sets_Vari.loc['Set1', this_parameter]
                                 
                                 # if user select all timeslices
@@ -1344,75 +1356,84 @@ if __name__ == '__main__':
                                     # find elements in common
                                     this_set_range_indices = this_set_range_indices_first
                                     this_set_range_indices.sort()
-                                    # for each index we extract the time and value in a list:
-                                    # extracting time:
-                                    time_list = deepcopy( inherited_scenarios[ scenario_list[s] ][ f ][ this_parameter ]['y'][ this_set_range_indices[0]:this_set_range_indices[-1]+1 ] )
-                                    time_list = [ int( time_list[j] ) for j in range( len( time_list ) ) ]
-                                    # extracting value:
-                                    value_list = deepcopy( inherited_scenarios[ scenario_list[s] ][ f ][ this_parameter ]['value'][ this_set_range_indices[0]:this_set_range_indices[-1]+1 ] )
-                                    value_list = [ float( value_list[j] ) for j in range( len( value_list ) ) ]
-                                    #--------------------------------------------------------------------#
-                                    if this_parameter == 'TotalTechnologyAnnualActivityLowerLimit':
-                                        this_set_range_indices_upper = [ i for i, x in enumerate( inherited_scenarios[ scenario_list[ s ] ][ f ][ 'TotalTechnologyAnnualActivityUpperLimit' ][ tsfirst ] ) if x == str( this_set_first ) ]
-                                        # find elements in common
-                                        this_set_range_indices_upper.sort()
-                                        if this_set_range_indices_upper != []:
-                                            value_list_upper = deepcopy( inherited_scenarios[ scenario_list[s] ][ f ][ 'TotalTechnologyAnnualActivityUpperLimit' ]['value'][ this_set_range_indices_upper[0]:this_set_range_indices_upper[-1]+1 ] )
-                                            # Get gap between Upper and Lower Limit
-                                            gap_list = [upper - lower for upper, lower in zip(value_list_upper, value_list)]
-                                    #--------------------------------------------------------------------#
-                                    # now that the value is extracted, we must manipulate the result and assign back
-                                    if Math_Type == 'Time_Series':
-                                        new_value_list = deepcopy(AUX.interpolation_non_linear_final(time_list, value_list, float(Values_per_Future[fut_id]), last_year_analysis, Initial_Year_of_Uncertainty))
-                                    elif Math_Type == 'Constant':
-                                        new_value_list = deepcopy(AUX.interpolation_constant_trajectory(time_list, value_list, Initial_Year_of_Uncertainty))
-                                    elif Math_Type == 'Linear':
-                                        new_value_list = deepcopy(AUX.interpolation_linear(time_list, value_list, float(Values_per_Future[fut_id]), last_year_analysis, Initial_Year_of_Uncertainty))
-                                    elif Math_Type == 'Logistic':
-                                        new_value_list = deepcopy(AUX.interpolation_logistic_trajectory(time_list, value_list, float(Values_per_Future[fut_id]), last_year_analysis, Initial_Year_of_Uncertainty))
-                                       
-                                        
-                                        
-                                        
-                                        # import matplotlib.pyplot as plt
-                                        # new_value_list_constant = deepcopy(AUX.interpolation_constant_trajectory(time_list, value_list, Initial_Year_of_Uncertainty))
-                                        # new_value_list_non_linear = deepcopy(AUX.interpolation_non_linear_final(time_list, value_list, float(Values_per_Future[fut_id]), last_year_analysis, Initial_Year_of_Uncertainty))
-                                        # new_value_list_linear = deepcopy(AUX.interpolation_linear(time_list, value_list, float(Values_per_Future[fut_id]), last_year_analysis, Initial_Year_of_Uncertainty))
-                                        
-                                        
-                                        # # Plot original vs interpolated logistic values
-                                        # plt.figure(figsize=(12, 6))
-                                        # plt.plot(time_list, value_list, label='Original value_list', linestyle='--', marker='o')
-                                        # plt.plot(time_list, new_value_list, label='Logistic new_value_list', linestyle='-', marker='x')
-                                        # plt.plot(time_list, new_value_list_constant, label='Constant new_value_list', linestyle='-', marker='x')
-                                        # plt.plot(time_list, new_value_list_non_linear, label='Non linear new_value_list', linestyle='-', marker='x')
-                                        # plt.plot(time_list, new_value_list_linear, label='Linear new_value_list', linestyle='-', marker='x')
-                                        
-                                        # # Optional vertical line to mark start of logistic behavior
-                                        # plt.axvline(x=Initial_Year_of_Uncertainty, color='gray', linestyle=':', label='Start of Uncertainties')
-                                        
-                                        # # Plot aesthetics
-                                        # plt.title(f'Comparison of trajectories to {this_parameter}/{this_set_first}')
-                                        # plt.xlabel('Year')
-                                        # plt.ylabel('Value')
-                                        # plt.grid(True)
-                                        # plt.legend()
-                                        # plt.tight_layout()
-                                        
-                                        # plt.show()
-                                        
-                                        # sys.exit(34)
-
-                                    # print('time_list=',time_list)
-                                    # print('value_list=',value_list)
-                                    # print('float(Values_per_Future[fut_id])=',float(Values_per_Future[fut_id]))
-                                    # print('last_year_analysis=',last_year_analysis)
-                                    # print('Initial_Year_of_Uncertainty=',Initial_Year_of_Uncertainty)
                                     
-                                    # print('new_value_list=',new_value_list)
-                                    # print('new_value_list_2=',new_value_list_2)
-                                    # sys.exit(34)
-                                        #
+                                    if this_parameter in ['DiscountRateIdv']:
+                                        # No need to "extract time" as we are working with a param fixed in time
+                                        # extracting value:
+                                        value_list = deepcopy( inherited_scenarios[ scenario_list[s] ][ f ][ this_parameter ]['value'][ this_set_range_indices[0]:this_set_range_indices[-1]+1 ] )
+                                        value_list = [ float( value_list[j] ) for j in range( len( value_list ) ) ]
+                                        # assign new value
+                                        new_value_list = [xx*float(Values_per_Future[fut_id]) for xx in value_list]
+                                    else:
+                                        # for each index we extract the time and value in a list:
+                                        # extracting time:
+                                        time_list = deepcopy( inherited_scenarios[ scenario_list[s] ][ f ][ this_parameter ]['y'][ this_set_range_indices[0]:this_set_range_indices[-1]+1 ] )
+                                        time_list = [ int( time_list[j] ) for j in range( len( time_list ) ) ]
+                                        # extracting value:
+                                        value_list = deepcopy( inherited_scenarios[ scenario_list[s] ][ f ][ this_parameter ]['value'][ this_set_range_indices[0]:this_set_range_indices[-1]+1 ] )
+                                        value_list = [ float( value_list[j] ) for j in range( len( value_list ) ) ]
+                                        #--------------------------------------------------------------------#
+                                        if this_parameter == 'TotalTechnologyAnnualActivityLowerLimit':
+                                            this_set_range_indices_upper = [ i for i, x in enumerate( inherited_scenarios[ scenario_list[ s ] ][ f ][ 'TotalTechnologyAnnualActivityUpperLimit' ][ tsfirst ] ) if x == str( this_set_first ) ]
+                                            # find elements in common
+                                            this_set_range_indices_upper.sort()
+                                            if this_set_range_indices_upper != []:
+                                                value_list_upper = deepcopy( inherited_scenarios[ scenario_list[s] ][ f ][ 'TotalTechnologyAnnualActivityUpperLimit' ]['value'][ this_set_range_indices_upper[0]:this_set_range_indices_upper[-1]+1 ] )
+                                                # Get gap between Upper and Lower Limit
+                                                gap_list = [upper - lower for upper, lower in zip(value_list_upper, value_list)]
+                                        #--------------------------------------------------------------------#
+                                        # now that the value is extracted, we must manipulate the result and assign back
+                                        if Math_Type == 'Time_Series':
+                                            new_value_list = deepcopy(AUX.interpolation_non_linear_final(time_list, value_list, float(Values_per_Future[fut_id]), last_year_analysis, Initial_Year_of_Uncertainty))
+                                        elif Math_Type == 'Constant':
+                                            new_value_list = deepcopy(AUX.interpolation_constant_trajectory(time_list, value_list, Initial_Year_of_Uncertainty))
+                                        elif Math_Type == 'Linear':
+                                            new_value_list = deepcopy(AUX.interpolation_linear(time_list, value_list, float(Values_per_Future[fut_id]), last_year_analysis, Initial_Year_of_Uncertainty))
+                                        elif Math_Type == 'Logistic':
+                                            new_value_list = deepcopy(AUX.interpolation_logistic_trajectory(time_list, value_list, float(Values_per_Future[fut_id]), last_year_analysis, Initial_Year_of_Uncertainty))
+                                           
+                                            
+                                            
+                                            
+                                            # import matplotlib.pyplot as plt
+                                            # new_value_list_constant = deepcopy(AUX.interpolation_constant_trajectory(time_list, value_list, Initial_Year_of_Uncertainty))
+                                            # new_value_list_non_linear = deepcopy(AUX.interpolation_non_linear_final(time_list, value_list, float(Values_per_Future[fut_id]), last_year_analysis, Initial_Year_of_Uncertainty))
+                                            # new_value_list_linear = deepcopy(AUX.interpolation_linear(time_list, value_list, float(Values_per_Future[fut_id]), last_year_analysis, Initial_Year_of_Uncertainty))
+                                            
+                                            
+                                            # # Plot original vs interpolated logistic values
+                                            # plt.figure(figsize=(12, 6))
+                                            # plt.plot(time_list, value_list, label='Original value_list', linestyle='--', marker='o')
+                                            # plt.plot(time_list, new_value_list, label='Logistic new_value_list', linestyle='-', marker='x')
+                                            # plt.plot(time_list, new_value_list_constant, label='Constant new_value_list', linestyle='-', marker='x')
+                                            # plt.plot(time_list, new_value_list_non_linear, label='Non linear new_value_list', linestyle='-', marker='x')
+                                            # plt.plot(time_list, new_value_list_linear, label='Linear new_value_list', linestyle='-', marker='x')
+                                            
+                                            # # Optional vertical line to mark start of logistic behavior
+                                            # plt.axvline(x=Initial_Year_of_Uncertainty, color='gray', linestyle=':', label='Start of Uncertainties')
+                                            
+                                            # # Plot aesthetics
+                                            # plt.title(f'Comparison of trajectories to {this_parameter}/{this_set_first}')
+                                            # plt.xlabel('Year')
+                                            # plt.ylabel('Value')
+                                            # plt.grid(True)
+                                            # plt.legend()
+                                            # plt.tight_layout()
+                                            
+                                            # plt.show()
+                                            
+                                            # sys.exit(34)
+
+                                        # print('time_list=',time_list)
+                                        # print('value_list=',value_list)
+                                        # print('float(Values_per_Future[fut_id])=',float(Values_per_Future[fut_id]))
+                                        # print('last_year_analysis=',last_year_analysis)
+                                        # print('Initial_Year_of_Uncertainty=',Initial_Year_of_Uncertainty)
+                                        
+                                        # print('new_value_list=',new_value_list)
+                                        # print('new_value_list_2=',new_value_list_2)
+                                        # sys.exit(34)
+                                            #
                                     new_value_list_rounded = [ round(elem, round_cs) for elem in new_value_list ]
                                     #--------------------------------------------------------------------#
                                     

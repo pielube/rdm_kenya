@@ -318,7 +318,7 @@ a) For old technologies, the values must go to zero at a desired year
 def year_when_reaches_zero( time_list, value_list, ywrz, Initial_Year_of_Uncertainty ):
     new_value_list = []
     # We interpolate the value list defining when the value reaches 0. The values go from 100% in the base year to 0% in year_when_reaches_zero
-    # We will create an interpoaltion function for the percentages:
+    # We will create an interpolation function for the percentages:
     x_coord_tofill = [] # these are indices that are NOT known - to interpolate
     xp_coord_known = [] # these are known indices - use for interpolation
     fp_coord_known = []# [100,0] # these are the values known to interpolate the whole series

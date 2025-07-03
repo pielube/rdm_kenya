@@ -6,6 +6,7 @@ Created on Fri Apr 19 18:37:25 2024
 """
 
 import os
+from pathlib import Path
 import pandas as pd
 import yaml
 from copy import deepcopy
@@ -174,30 +175,19 @@ if __name__ == '__main__':
         dict_scen_folder_unique = {}
         
         # Select folder path
-        if tier_by_path=='1':
-            tier_dir = params['tier1_dir'] + '\\\\' + str(case) + params['outputs']
-            output_filename = params['tier1_dir'] + '\\\\status_of_each_future.txt'
-        elif tier_by_path=='3a':
-            tier_dir = params['tier3a_dir'] + '\\\\' + str(scen) + '\\\\' + str(case) + params['outputs']
-            output_filename = params['tier3a_dir'] + '\\\\status_of_each_future.txt'
+        tier1_dir = Path(params['tier1_dir'].replace('\\', os.sep))
+        tier3a_dir = Path(params['tier3a_dir'].replace('\\', os.sep))
+        outputs_dir = params['outputs'].strip('/\\')
 
-        # 1st try
-        tier_dir = tier_dir.replace('/','\\\\')
-        tier_dir = tier_dir.replace('..\\\\','')
-        
-        tier_dir = tier_dir.replace('\\\\', '\\')
-        tier_dir = get_config_main_path(os.path.abspath(''), tier_dir)
-        
-        output_filename = output_filename.replace('/','\\\\')
-        output_filename = output_filename.replace('..\\\\','')
-        
-        output_filename = output_filename.replace('\\\\', '\\')
-        output_filename = get_config_main_path(os.path.abspath(''), output_filename)
-        output_filename = output_filename[:-1]
         if tier_by_path=='1':
-            output_filename = output_filename.replace('\\Executables', '')
+            tier_dir = tier1_dir / str(case) / outputs_dir
+            output_filename = tier1_dir.parent / 'status_of_each_future'
         elif tier_by_path=='3a':
-            output_filename = output_filename.replace('\\Futures', '')
+            tier_dir = tier3a_dir / str(scen) / str(case) / outputs_dir
+            output_filename = tier3a_dir.parent / 'status_of_each_future'
+
+        tier_dir = Path(get_config_main_path(os.path.abspath(''), str(tier_dir))).resolve()
+        output_filename = Path(get_config_main_path(os.path.abspath(''), str(output_filename))).with_suffix('.txt').resolve()
         
         # Define the number of first case for tier 3a
         if params['execute_scenarios'][-1] == 'All':
@@ -229,8 +219,8 @@ if __name__ == '__main__':
                     file_status.write(text_to_write)
             
             
-            out_quick = params['outputs'].replace('/','')
-            file_df_dir = tier_dir.replace(f'{out_quick}\\', '')
+            out_quick = params['outputs'].strip('/\\')
+            file_df_dir = Path(tier_dir).parent
         
         
             if os.path.exists(tier_dir):
@@ -238,10 +228,10 @@ if __name__ == '__main__':
                 
                 # Search for the .sol file in the specified directory
                 sol_file = None
-                sol_folder = tier_dir.replace('Outputs\\','')
+                sol_folder = Path(tier_dir).parent
                 for file_name in os.listdir(sol_folder):
                     if file_name.endswith('.sol'):
-                        sol_file = os.path.join(sol_folder, file_name)
+                        sol_file = sol_folder / file_name
                         break
                 
                 # If a .sol file is found, read its content
@@ -293,7 +283,7 @@ if __name__ == '__main__':
                     columns_check.insert(0,'Parameter')
                     df_all = pd.concat(df_list, ignore_index=True, sort=False)
                     df_all = df_all[ sets_csv_temp ]
-                    file_df_dir = params["excel_data_file_dir"].replace('../','')
+                    file_df_dir = Path(params["excel_data_file_dir"].replace('..'+os.sep, '').replace('\\', os.sep))
                     
                     # df_all.to_csv(f'Data_plots_{case}.csv')
                     
@@ -336,11 +326,11 @@ if __name__ == '__main__':
                     # The 'outer' join ensures that all combinations of dimension values are included, filling missing values with NaN
                     # df_all_3.to_csv(f'{file_df_dir}/Data_Output_{case[-1]}.csv')
 
-                    df_all_3.to_csv(f'{sol_folder}/{case}_Output.csv')
+                    df_all_3.to_csv(str(Path(sol_folder) / f"{case}_Output.csv"))
     
                     # Delete Outputs folder with otoole csvs files
                     if params['del_files']:
-                        outputs_otoole_csvs = sol_folder + out_quick
+                        outputs_otoole_csvs = Path(sol_folder) / out_quick
                         if os.path.exists(outputs_otoole_csvs):
                             shutil.rmtree(outputs_otoole_csvs)
                     
@@ -351,7 +341,7 @@ if __name__ == '__main__':
                 else:
                     # Delete Outputs folder with otoole csvs files
                     if params['del_files']:
-                        outputs_otoole_csvs = file_df_dir + out_quick
+                        outputs_otoole_csvs = file_df_dir / out_quick
                         if os.path.exists(outputs_otoole_csvs):
                             shutil.rmtree(outputs_otoole_csvs)
                     

@@ -4,11 +4,11 @@
 ################################ Paths ################################
 
 # Don't change the paths
-tier1_dir: '..\\workflow\\1_Experiment\\Executables'
-tier3a_dir: '..\\workflow\\1_Experiment\\Experimental_Platform\\Futures'
-outputs: '/Outputs'
+tier1_dir: '../workflow/1_Experiment/Executables'
+tier3a_dir: '../workflow/1_Experiment/Experimental_Platform/Futures'
+outputs: 'Outputs'
 vis_dir: 'Visualizations'
-excel_data_file_dir:  '..\\workflow\\1_Experiment\\Experimental_Platform\\Futures\\'
+excel_data_file_dir: '../workflow/1_Experiment/Experimental_Platform/Futures/'
 #######################################################################
 
 ########################## Control Variables ###############################

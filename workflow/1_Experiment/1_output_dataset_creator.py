@@ -2,17 +2,18 @@ from datetime import date
 import sys
 import pandas as pd
 import os
+from pathlib import Path
 import re
 import pyarrow
 
 # Get the directory of the current script
-current_script_path = os.path.dirname(os.path.abspath(__file__))
-dir_executables = os.path.join(current_script_path, 'Executables')
+current_script_path = Path(__file__).resolve().parent
+dir_executables = current_script_path / 'Executables'
 
 sys.path.insert(0, dir_executables)
 import local_dataset_creator_0
 
-dir_futures = os.path.join(current_script_path, 'Experimental_Platform', 'Futures')
+dir_futures = current_script_path / 'Experimental_Platform' / 'Futures'
 sys.path.insert(0, dir_futures)
 import local_dataset_creator_f
 
@@ -27,12 +28,12 @@ if __name__ == '__main__':
         local_dataset_creator_f.execute_local_dataset_creator_f_inputs(dir_futures)
     
     ############################################################################################################
-    output_dataset_0_path = os.path.join(dir_executables, 'output_dataset_0.csv')
+    output_dataset_0_path = dir_executables / 'output_dataset_0.csv'
     df_0_output = pd.read_csv(output_dataset_0_path, index_col=None, header=0, low_memory=False)
     df_0_output['Scen_fut'] = df_0_output['Strategy'].astype(str) + "_" + df_0_output['Future.ID'].astype(str)
     
-    # output_dataset_f_path = os.path.join(dir_futures, 'output_dataset_f.csv')
-    output_dataset_f_path = os.path.join(dir_futures, 'output_dataset_f.parquet')
+    # output_dataset_f_path = dir_futures / 'output_dataset_f.csv'
+    output_dataset_f_path = dir_futures / 'output_dataset_f.parquet'
     # df_f_output = pd.read_csv( output_dataset_f_path, index_col=None, header=0)
     df_f_output = pd.read_parquet(output_dataset_f_path, engine='pyarrow')
 
@@ -58,12 +59,12 @@ if __name__ == '__main__':
     ], inplace=True)
     
     ############################################################################################################
-    input_dataset_0_path = os.path.join(dir_executables, 'input_dataset_0.csv')
+    input_dataset_0_path = dir_executables / 'input_dataset_0.csv'
     df_0_input = pd.read_csv(input_dataset_0_path, index_col=None, header=0, low_memory=False)
     df_0_input['Scen_fut'] = df_0_input['Strategy'].astype(str) + "_" + df_0_input['Future.ID'].astype(str)
     
-    # input_dataset_f_path = os.path.join(dir_futures, 'input_dataset_f.csv')
-    input_dataset_f_path = os.path.join(dir_futures, 'input_dataset_f.parquet')
+    # input_dataset_f_path = dir_futures / 'input_dataset_f.csv'
+    input_dataset_f_path = dir_futures / 'input_dataset_f.parquet'
     # df_f_input = pd.read_csv(input_dataset_f_path, index_col=None, header=0, low_memory=False)
     df_f_input = pd.read_parquet(input_dataset_f_path, engine='pyarrow')
     li_intput = [df_0_input, df_f_input]
@@ -99,9 +100,9 @@ if __name__ == '__main__':
         print("Folder 'Results' already exists.")
     #
     df_output = dfa_list[0]
-    output_path = os.path.join('Results','OSEMOSYS_Energy_Output.csv')
+    output_path = Path('Results') / 'OSEMOSYS_Energy_Output.csv'
     df_output.to_csv ( output_path, index = None, header=True)
     #
     df_input = dfa_list[1]
-    input_path = os.path.join('Results','OSEMOSYS_Energy_Input.csv')
+    input_path = Path('Results') / 'OSEMOSYS_Energy_Input.csv'
     df_input.to_csv ( input_path, index = None, header=True)

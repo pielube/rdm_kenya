@@ -8,7 +8,11 @@
 import multiprocessing as mp
 import pandas as pd
 import numpy as np
-import os, os.path, sys, errno
+import os
+import os.path
+import sys
+import errno
+from pathlib import Path
 import math, time
 from copy import deepcopy
 import random
@@ -44,9 +48,9 @@ interpolation : implemented in a function for linear of non-linear time-series
 def set_first_list( Executed_Scenario ):
     #
     # Get the directory of the current script
-    current_script_path = os.path.dirname(os.path.abspath(__file__))
+    current_script_path = Path(__file__).resolve().parent
     # Construct the full path to the Excel file, relative to the script's directory
-    dir_futures = os.path.join(current_script_path, 'Experimental_Platform', 'Futures', Executed_Scenario)
+    dir_futures = current_script_path / 'Experimental_Platform' / 'Futures' / Executed_Scenario
     first_list_raw = os.listdir( dir_futures )
     #
     global first_list
@@ -57,9 +61,9 @@ def main_executer(n1, Executed_Scenario, time_vector, scenario_list,solver,osemo
     print('# ' + str(n1+1) + ' of ' + Executed_Scenario )
     set_first_list( Executed_Scenario )
     file_aboslute_address = os.path.abspath("0_experiment_manager.py")
-    file_adress = os.path.dirname(os.path.abspath(__file__))
+    file_adress = Path(__file__).resolve().parent
     #
-    case_address = os.path.join(file_adress, 'Experimental_Platform', 'Futures', Executed_Scenario, first_list[n1] )
+    case_address = file_adress / 'Experimental_Platform' / 'Futures' / Executed_Scenario / first_list[n1]
     #
     str_scen_fut = first_list[n1].split('_')
     str_scen, str_fut = str_scen_fut[0], str_scen_fut[-1]
@@ -68,46 +72,51 @@ def main_executer(n1, Executed_Scenario, time_vector, scenario_list,solver,osemo
         #
         this_case = [ e for e in os.listdir( case_address ) if '.txt' in e ]
         #
-        str_start = "start /B start cmd.exe @cmd /k cd " + file_adress
+        str_start = "start /B start cmd.exe @cmd /k cd " + str(file_adress)
         #
-        data_file = case_address.replace('./','').replace('/','\\') + '\\' + str( this_case[0] )
-        output_file = case_address.replace('./','').replace('/','\\') + '\\' + str( this_case[0] ).replace('.txt','') + '_Output'
+        data_file = case_address / this_case[0]
+        output_file = case_address / (this_case[0].replace('.txt','') + '_Output')
         #
-        model_file = os.path.join(file_adress.replace('1_Experiment',''), osemosys_model)
+        model_file = file_adress.parent / osemosys_model
         
         if solver == 'glpk':
-            str_solve = 'glpsol -m '+ str( model_file ) +' -d ' + str( data_file )  +  " -o " + str( output_file ) + '.txt'
+            str_solve = 'glpsol -m '+ str(model_file) +' -d ' + str(data_file)  +  " -o " + str(output_file) + '.txt'
         else:
-            str_matrix = 'glpsol -m ' + str( model_file ) + ' -d ' + str( data_file ) + ' --wlp ' + str( output_file ) + '.lp --check'
-            os.system( str_start and str_matrix )
-            
+            str_matrix = 'glpsol -m ' + str(model_file) + ' -d ' + str(data_file) + ' --wlp ' + str(output_file) + '.lp --check'
+            os.system(str_start and str_matrix)
+
             if solver == 'cbc':
-                str_solve = 'cbc ' + str( output_file ) + '.lp solve -solu ' + str( output_file ) + '.sol'
-        
+                str_solve = 'cbc ' + str(output_file) + '.lp solve -solu ' + str(output_file) + '.sol'
+
             elif solver == 'cplex':
-                if os.path.exists(output_file + '.sol'):
-                    shutil.os.remove(output_file + '.sol')
-                str_solve = 'cplex -c "read ' + str( output_file ) + '.lp" "set threads 2" "optimize" "write ' + str( output_file ) + '.sol"'
+                sol_path = str(output_file) + '.sol'
+                if os.path.exists(sol_path):
+                    shutil.os.remove(sol_path)
+                str_solve = 'cplex -c "read ' + str(output_file) + '.lp" "set threads 2" "optimize" "write ' + str(output_file) + '.sol"'
         os.system( str_start and str_solve )
         time.sleep(1)
         #
         
         if solver == 'cbc' or solver == 'cplex':
-            AUX.data_processor_new(output_file + '.sol',
-                                   './workflow/1_Experiment/0_From_Confection/B1_Model_Structure.xlsx',
-                                   str_scen,
-                                   str_fut,
-                                   solver,
-                                   parameters_to_print,
-                                   'parquet')
+            AUX.data_processor_new(
+                str(output_file) + '.sol',
+                './workflow/1_Experiment/0_From_Confection/B1_Model_Structure.xlsx',
+                str_scen,
+                str_fut,
+                solver,
+                parameters_to_print,
+                'parquet'
+            )
         elif solver == 'glpk':
-            AUX.data_processor_new(output_file + '.txt',
-                                   './workflow/1_Experiment/0_From_Confection/B1_Model_Structure.xlsx',
-                                   str_scen,
-                                   str_fut,
-                                   solver,
-                                   parameters_to_print,
-                                   'parquet')
+            AUX.data_processor_new(
+                str(output_file) + '.txt',
+                './workflow/1_Experiment/0_From_Confection/B1_Model_Structure.xlsx',
+                str_scen,
+                str_fut,
+                solver,
+                parameters_to_print,
+                'parquet'
+            )
         #
         # AUX.create_output_dataset_future_0(n1, str_scen, time_vector, first_list,'./workflow/1_Experiment/0_From_Confection/B1_Model_Structure.xlsx')
         #

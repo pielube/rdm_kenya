@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import re
 import csv
 import pandas as pd
@@ -9,6 +10,7 @@ def test1():
 ############################################################################################################################
 def execute_local_dataset_creator_f_outputs(file_adress):
     # List scenarios in the directory, excluding unnecessary files
+    file_adress = Path(file_adress)
     scenario_list_raw = os.listdir(file_adress)
     scenario_list = [
         e for e in scenario_list_raw 
@@ -19,7 +21,7 @@ def execute_local_dataset_creator_f_outputs(file_adress):
     
     for s in range(len(scenario_list)):
         # Construct the path for each scenario
-        case_list_raw_path = os.path.join(file_adress, scenario_list[s])
+        case_list_raw_path = file_adress / scenario_list[s]
         # List cases in the scenario directory, excluding unnecessary files
         case_list_raw = os.listdir(case_list_raw_path)
         case_list = [
@@ -29,7 +31,7 @@ def execute_local_dataset_creator_f_outputs(file_adress):
         
         for n in range(len(case_list)):
             # Construct the Parquet file path
-            filename = os.path.join(file_adress, scenario_list[s], case_list[n], case_list[n] + '_Output.parquet')
+            filename = file_adress / scenario_list[s] / case_list[n] / f"{case_list[n]}_Output.parquet"
             
             if os.path.exists(filename):
                 # print(f"Reading file: {filename}")
@@ -47,7 +49,7 @@ def execute_local_dataset_creator_f_outputs(file_adress):
     frame = pd.concat(li, axis=0, ignore_index=True)
     
     # Export the concatenated DataFrame as a Parquet file
-    parquet_path = os.path.join(file_adress, 'output_dataset_f.parquet')
+    parquet_path = file_adress / 'output_dataset_f.parquet'
     frame.to_parquet(parquet_path, engine='pyarrow', index=False)
     # print(f"File saved at: {parquet_path}")
 
@@ -56,6 +58,7 @@ def execute_local_dataset_creator_f_outputs(file_adress):
 ############################################################################################################################
 def execute_local_dataset_creator_f_inputs(file_adress):
     # List scenarios in the directory, excluding unnecessary files
+    file_adress = Path(file_adress)
     scenario_list_raw = os.listdir(file_adress)
     scenario_list = [
         e for e in scenario_list_raw 
@@ -66,7 +69,7 @@ def execute_local_dataset_creator_f_inputs(file_adress):
     
     for scenario in scenario_list:
         # List cases in the scenario directory
-        case_list_raw_path = os.path.join(file_adress, scenario)
+        case_list_raw_path = file_adress / scenario
         case_list_raw = os.listdir(case_list_raw_path)
         case_list = [
             e for e in case_list_raw 
@@ -75,7 +78,7 @@ def execute_local_dataset_creator_f_inputs(file_adress):
         
         for case in case_list:
             # Construct the Parquet file path
-            filename = os.path.join(file_adress, scenario, case, f"{case}_Input.parquet")
+            filename = file_adress / scenario / case / f"{case}_Input.parquet"
             
             if os.path.exists(filename):
                 # print(f"Reading file: {filename}")
@@ -93,7 +96,7 @@ def execute_local_dataset_creator_f_inputs(file_adress):
     frame = pd.concat(li, axis=0, ignore_index=True)
     
     # Export the concatenated DataFrame as a Parquet file
-    parquet_path = os.path.join(file_adress, 'input_dataset_f.parquet')
+    parquet_path = file_adress / 'input_dataset_f.parquet'
     frame.to_parquet(parquet_path, engine='pyarrow', index=False)
     # print(f"File saved at: {parquet_path}")
 
@@ -103,25 +106,26 @@ def execute_local_dataset_creator_f_prices(file_adress):
     # file_adress = re.escape( file_aboslute_address.replace( 'local_dataset_creator_f.py', '' ) ).replace( '\:', ':' )
     # file_adress += 'Experimental_Platform\\Futures\\'
     #
-    scenario_list_raw = os.listdir( file_adress )
+    file_adress = Path(file_adress)
+    scenario_list_raw = os.listdir(file_adress)
     scenario_list = [e for e in scenario_list_raw if ('.py' not in e ) and ('.csv' not in e ) and ('__pycache__' not in e) ]
     #
     li = []
     #
     for s in range( len( scenario_list ) ):
         #
-        case_list_raw_path = os.path.join(file_adress, scenario_list[s])
+        case_list_raw_path = file_adress / scenario_list[s]
         case_list_raw = os.listdir( case_list_raw_path )
         case_list = [e for e in case_list_raw if ('.py' not in e ) and ('.csv' not in e ) and ('__pycache__' not in e) ]
         #
         for n in range( len( case_list ) ):
             #
-            case_path = os.path.join(file_adress, scenario_list[s], case_list[n])
+            case_path = file_adress / scenario_list[s] / case_list[n]
             x = os.listdir( case_path  )
             #
             if len(x) == 5:
                 #
-                filename = os.path.join(file_adress, scenario_list[n], case_list[n], case_list[n] + '_Prices.csv')
+                filename = file_adress / scenario_list[n] / case_list[n] / f"{case_list[n]}_Prices.csv"
                 #
                 line_count = 0
                 with open( filename ) as csv_file:
@@ -139,7 +143,7 @@ def execute_local_dataset_creator_f_prices(file_adress):
     print('###')
     #
     frame = pd.concat(li, axis=0, ignore_index=True)
-    csv_path = os.path.join(file_adress, 'prices_dataset_f.csv')
+    csv_path = file_adress / 'prices_dataset_f.csv'
     export_csv = frame.to_csv ( csv_path, index = None, header=True)
 ############################################################################################################################
 def execute_local_dataset_creator_f_distribution(file_adress):
@@ -147,25 +151,26 @@ def execute_local_dataset_creator_f_distribution(file_adress):
     # file_adress = re.escape( file_aboslute_address.replace( 'local_dataset_creator_f.py', '' ) ).replace( '\:', ':' )
     # file_adress += 'Experimental_Platform\\Futures\\'
     #
-    scenario_list_raw = os.listdir( file_adress )
+    file_adress = Path(file_adress)
+    scenario_list_raw = os.listdir(file_adress)
     scenario_list = [e for e in scenario_list_raw if ('.py' not in e ) and ('.csv' not in e ) and ('__pycache__' not in e) ]
     #
     li = []
     #
     for s in range( len( scenario_list ) ):
         #
-        case_list_raw_path = os.path.join(file_adress, scenario_list[s])
+        case_list_raw_path = file_adress / scenario_list[s]
         case_list_raw = os.listdir( case_list_raw_path )
         case_list = [e for e in case_list_raw if ('.py' not in e ) and ('.csv' not in e ) and ('__pycache__' not in e) ]
         #
         for n in range( len( case_list ) ):
             #
-            case_path = os.path.join(file_adress, scenario_list[s], case_list[n])
+            case_path = file_adress / scenario_list[s] / case_list[n]
             x = os.listdir( case_path  )
             #
             if len(x) == 5:
                 #
-                filename = os.path.join(file_adress, scenario_list[n], case_list[n], case_list[n] + '_Distribution.csv')
+                filename = file_adress / scenario_list[n] / case_list[n] / f"{case_list[n]}_Distribution.csv"
                 #
                 line_count = 0
                 with open( filename ) as csv_file:
@@ -183,6 +188,6 @@ def execute_local_dataset_creator_f_distribution(file_adress):
     print('###')
     #
     frame = pd.concat(li, axis=0, ignore_index=True)
-    csv_path = os.path.join(file_adress, 'distribution_dataset_f.csv')
-    export_csv = frame.to_csv ( csv_path, index = None, header=True)
+    csv_path = file_adress / 'distribution_dataset_f.csv'
+    export_csv = frame.to_csv(csv_path, index=None, header=True)
 ############################################################################################################################

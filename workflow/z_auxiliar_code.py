@@ -9,6 +9,7 @@ import xlsxwriter
 import pandas as pd
 import csv
 import os
+from pathlib import Path
 import linecache
 from copy import deepcopy
 import gc
@@ -3382,40 +3383,41 @@ def create_output_dataset_future_0(case, time_range_vector, first_list, structur
     #print( 'We finished with printing the outputs: ' + str(first_list[case]))
     
     
-def run_osemosys( solver, scenario_dir, data_file, model_file, output_file ):
+def run_osemosys(solver, scenario_dir, data_file, model_file, output_file):
     
-    file_aboslute_address = os.path.abspath("z_auxiliar_code.py")
-    file_adress = re.escape( file_aboslute_address.replace( 'z_auxiliar_code.py', '' ) )
-    file_config_address = get_config_main_path(os.path.abspath(''),os.path.join('workflow','3_Postprocessing'))
+    file_aboslute_address = Path("z_auxiliar_code.py").resolve()
+    file_adress = re.escape(str(file_aboslute_address.parent))
+    file_config_address = get_config_main_path(os.path.abspath(''), os.path.join('workflow','3_Postprocessing'))
     
     str_start = "start /B start cmd.exe @cmd /k cd " + file_adress
 
-    output_file = data_file.replace('.txt','') + '_Output'
+    output_file = Path(str(data_file).replace('.txt', '_Output'))
     #
     if solver == 'glpk':
-        str_solve = 'glpsol -m '+ str( model_file ) +' -d ' + str( data_file )  +  " -o " + str( output_file ) + '.txt'
+        str_solve = 'glpsol -m ' + str(model_file) + ' -d ' + str(data_file) + " -o " + str(output_file) + '.txt'
     else:
-        str_matrix = 'glpsol -m ' + str( model_file ) + ' -d ' + str( data_file ) + ' --wlp ' + str( output_file ) + '.lp --check'
-        os.system( str_start and str_matrix )
+        str_matrix = 'glpsol -m ' + str(model_file) + ' -d ' + str(data_file) + ' --wlp ' + str(output_file) + '.lp --check'
+        os.system(str_start and str_matrix)
         
         if solver == 'cbc':
-            str_solve = 'cbc ' + str( output_file ) + '.lp solve -solu ' + str( output_file ) + '.sol'
+            str_solve = 'cbc ' + str(output_file) + '.lp solve -solu ' + str(output_file) + '.sol'
     
         elif solver == 'cplex':
-            if os.path.exists(output_file + '.sol'):
-                shutil.os.remove(output_file + '.sol')
-            str_solve = 'cplex -c "read ' + str( output_file ) + '.lp" "optimize" "write ' + str( output_file ) + '.sol"'
+            sol_path = str(output_file) + '.sol'
+            if os.path.exists(sol_path):
+                shutil.os.remove(sol_path)
+            str_solve = 'cplex -c "read ' + str(output_file) + '.lp" "optimize" "write ' + str(output_file) + '.sol"'
     os.system( str_start and str_solve )
     
     time.sleep(1)
     
     
-def run_scripts( script, solver=None, osemosys_model=None, Interface_RDM=None, shape_file=None):
+def run_scripts(script, solver=None, osemosys_model=None, Interface_RDM=None, shape_file=None):
     
-    if solver == None:
-        str_scripts = 'python -u ' + script
+    if solver is None:
+        str_scripts = 'python -u ' + str(Path(script))
     else:
-        str_scripts = 'python -u ' + script + ' ' + solver + ' ' + osemosys_model + ' ' + Interface_RDM + ' ' + shape_file
+        str_scripts = 'python -u ' + str(Path(script)) + ' ' + solver + ' ' + osemosys_model + ' ' + Interface_RDM + ' ' + shape_file
     subprocess.run(str_scripts, shell=True, check=True)
     
 def process_timeslices(input_file_path, num_time_slices_SDP_read, output_file_path):

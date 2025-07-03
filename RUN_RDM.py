@@ -1,5 +1,9 @@
 ' Libraries'
-import os, shutil, sys, time
+import os
+import shutil
+import sys
+import time
+from pathlib import Path
 import pandas as pd
 
 'Auxiliar code'
@@ -36,12 +40,13 @@ if run_base_future == 'Yes':
     
     for i in range(len(list_scenarios)):
         lines = []
+        scen_path = Path('workflow/0_Scenarios') / list_scenarios[i]
         # read file
-        with open("./workflow/0_Scenarios/"+list_scenarios[i], 'r') as fp:
+        with open(scen_path, 'r') as fp:
             # read an store all lines into list
             lines = fp.readlines()
         # Write file
-        with open("./workflow/0_Scenarios/"+list_scenarios[i], 'w') as fp:
+        with open(scen_path, 'w') as fp:
             # iterate each line
             for number, line in enumerate(lines):
                 if 'ResultsPath' not in line:
@@ -67,19 +72,21 @@ if run_base_future == 'Yes':
     """Note: all scenarios must have the same sets. We only use one of the scenario
     files to obtain the model structure and default parameters"""
     
-    dic_sets = AUX.obtain_structure_file("./workflow/0_Scenarios/"+list_scenarios[0], 
-                              './workflow/1_Experiment/0_From_Confection/B1_Model_Structure.xlsx', 
-                              './workflow/2_Miscellaneous/OSeMOSYS_Structure.xlsx',
-                              num_time_slices_SDP)
+    dic_sets = AUX.obtain_structure_file(
+        Path('workflow/0_Scenarios') / list_scenarios[0],
+        Path('workflow/1_Experiment/0_From_Confection/B1_Model_Structure.xlsx'),
+        Path('workflow/2_Miscellaneous/OSeMOSYS_Structure.xlsx'),
+        num_time_slices_SDP
+    )
     
     print('Step 3 finished')
     
     ' Step 4: Clean ./workflow/1_Experiment/Executables folder except .py file'
     
     # Clean folders
-    dir = './workflow/1_Experiment/Executables/'
+    dir = Path('workflow/1_Experiment/Executables')
     for files in os.listdir(dir):
-        path = os.path.join(dir, files)
+        path = dir / files
         if '.py' not in files:
             try:
                 shutil.rmtree(path)
@@ -91,9 +98,9 @@ if run_base_future == 'Yes':
     ' Step 5: Clean ./workflow/1_Experiment/Experimental_Platform/Futures folder except .py file'
     
     # Clean folders
-    dir = './workflow/1_Experiment/Experimental_Platform/Futures'
+    dir = Path('workflow/1_Experiment/Experimental_Platform/Futures')
     for files in os.listdir(dir):
-        path = os.path.join(dir, files)
+        path = dir / files
         if '.py' not in files:
             try:
                 shutil.rmtree(path)
@@ -105,28 +112,26 @@ if run_base_future == 'Yes':
     ''' Step 6: Create folders in ./workflow/1_Experiment/Executables and ./workflow/1_Experiment/Experimental_Platform/Futures folders 
     to stores future 0 and multiple futures respectively'''
     
-    # Create a folder for each scenario        
+    # Create a folder for each scenario
     for i in range(len(list_scenarios)):
-        newpath = './workflow/1_Experiment/Executables/' + list_scenarios[i].replace('.txt','')+ '_0' 
-        if not os.path.exists(newpath):
-            os.makedirs(newpath)
-            
-    # Create a folder for each scenario        
+        newpath = Path('workflow/1_Experiment/Executables') / f"{list_scenarios[i].replace('.txt','')}_0"
+        newpath.mkdir(parents=True, exist_ok=True)
+
+    # Create a folder for each scenario
     for i in range(len(list_scenarios)):
-        newpath = './workflow/1_Experiment//Experimental_Platform/Futures/' + list_scenarios[i].replace('.txt','')
-        if not os.path.exists(newpath):
-            os.makedirs(newpath)
+        newpath = Path('workflow/1_Experiment/Experimental_Platform/Futures') / list_scenarios[i].replace('.txt','')
+        newpath.mkdir(parents=True, exist_ok=True)
     
     print('Step 6 finished')
     
     ' Step 7: Paste Scenarios future 0 TXT files in ./workflow/1_Experiment/Executables/'
     
     for i in range(len(list_scenarios)):
-        source_folder = './workflow/0_Scenarios/'
-        destination_folder = './workflow/1_Experiment/Executables/'+ list_scenarios[i].replace('.txt','')+'_0/'
+        source_folder = Path('workflow/0_Scenarios')
+        destination_folder = Path('workflow/1_Experiment/Executables') / f"{list_scenarios[i].replace('.txt','')}_0"
         # construct full file path
-        source = source_folder + list_scenarios[i]
-        destination = destination_folder + list_scenarios[i].replace('.txt','')+'_0.txt'
+        source = source_folder / list_scenarios[i]
+        destination = destination_folder / f"{list_scenarios[i].replace('.txt','')}_0.txt"
         # copy files and write with timeslices quantity of the RDM_Interface.xlsx
         AUX.process_timeslices(source, num_time_slices_SDP, destination)
     
@@ -139,7 +144,7 @@ if run_base_future == 'Yes':
     for i in range(len(list_scenarios)):
                 
         # Isolate params in subfiles
-        data_per_param, special_sets = AUX.isolate_params("./workflow/0_Scenarios/"+list_scenarios[i])
+        data_per_param, special_sets = AUX.isolate_params(Path('workflow/0_Scenarios') / list_scenarios[i])
         
         
         
@@ -149,9 +154,11 @@ if run_base_future == 'Yes':
                                             num_time_slices_SDP)
         
         # Create future 0 input dataset'
-        AUX.create_input_dataset_future_0(list_dataframes,
-                                          list_scenarios[i].replace('.txt',''),
-                                          './workflow/1_Experiment/Executables/'+list_scenarios[i].replace('.txt','_0/'))
+        AUX.create_input_dataset_future_0(
+            list_dataframes,
+            list_scenarios[i].replace('.txt',''),
+            Path('workflow/1_Experiment/Executables') / f"{list_scenarios[i].replace('.txt','')}_0/"
+        )
         
     print('Step 8 finished')
     
@@ -162,11 +169,13 @@ if run_base_future == 'Yes':
     start1 = time.time()
     for i in range(len(list_scenarios)):
         # Run OSeMOSYS for each scenario
-        AUX.run_osemosys(solver,
-                         './workflow/1_Experiment/Executables/'+list_scenarios[i].replace('.txt','_0/'),
-                         './workflow/1_Experiment/Executables/'+list_scenarios[i].replace('.txt','_0/')+list_scenarios[i].replace('.txt','_0.txt'),
-                         './workflow/' + osemosys_model, 
-                         './workflow/1_Experiment/Executables/'+list_scenarios[i].replace('.txt','_0/')+list_scenarios[i].replace('.txt',''))
+        AUX.run_osemosys(
+            solver,
+            Path('workflow/1_Experiment/Executables') / f"{list_scenarios[i].replace('.txt','')}_0/",
+            Path('workflow/1_Experiment/Executables') / f"{list_scenarios[i].replace('.txt','')}_0/{list_scenarios[i].replace('.txt','')}_0.txt",
+            Path('workflow') / osemosys_model,
+            Path('workflow/1_Experiment/Executables') / f"{list_scenarios[i].replace('.txt','')}_0/{list_scenarios[i].replace('.txt','')}"
+        )
         
         print('Step 9.Input finished')
         
@@ -180,21 +189,25 @@ if run_base_future == 'Yes':
             
         #    AUX.create_output_dataset_future_0(0, time_range_vector, first_list,'./workflow/1_Experiment/0_From_Confection/B1_Model_Structure.xlsx')
         if solver == 'cbc' or solver == 'cplex':
-            AUX.data_processor_new('./workflow/1_Experiment/Executables/'+list_scenarios[i].replace('.txt','_0/')+list_scenarios[i].replace('.txt','_0_Output.sol'),
-                                   './workflow/1_Experiment/0_From_Confection/B1_Model_Structure.xlsx',
-                                   list_scenarios[i].replace('.txt',''),
-                                   str(0),
-                                   solver,
-                                   parameters_to_print,
-                                   'csv')
+            AUX.data_processor_new(
+                Path('workflow/1_Experiment/Executables') / f"{list_scenarios[i].replace('.txt','')}_0/{list_scenarios[i].replace('.txt','')}_0_Output.sol",
+                Path('workflow/1_Experiment/0_From_Confection/B1_Model_Structure.xlsx'),
+                list_scenarios[i].replace('.txt',''),
+                str(0),
+                solver,
+                parameters_to_print,
+                'csv'
+            )
         elif solver == 'glpk':
-            AUX.data_processor_new('./workflow/1_Experiment/Executables/'+list_scenarios[i].replace('.txt','_0/')+list_scenarios[i].replace('.txt','_0_Output.txt'),
-                                   './workflow/1_Experiment/0_From_Confection/B1_Model_Structure.xlsx',
-                                   list_scenarios[i].replace('.txt',''),
-                                   str(0),
-                                   solver,
-                                   parameters_to_print,
-                                   'csv')
+            AUX.data_processor_new(
+                Path('workflow/1_Experiment/Executables') / f"{list_scenarios[i].replace('.txt','')}_0/{list_scenarios[i].replace('.txt','')}_0_Output.txt",
+                Path('workflow/1_Experiment/0_From_Confection/B1_Model_Structure.xlsx'),
+                list_scenarios[i].replace('.txt',''),
+                str(0),
+                solver,
+                parameters_to_print,
+                'csv'
+            )
         print('Step 9.Output finished')    
     print('Step 9 finished')
     end_1 = time.time()
@@ -204,7 +217,13 @@ if run_base_future == 'Yes':
 if run_RDM == 'Yes':
     'Step 10: Execute RDM experiment'
     print('Start RDM experiment\n')
-    AUX.run_scripts('./workflow/1_Experiment/0_experiment_manager.py', solver, osemosys_model, os.path.abspath('Interface_RDM.xlsx'), shape_file=os.path.abspath('./workflow/2_Miscellaneous/shape_of_demand.csv'))
+    AUX.run_scripts(
+        str(Path('workflow/1_Experiment/0_experiment_manager.py')),
+        solver,
+        osemosys_model,
+        str(Path('Interface_RDM.xlsx').resolve()),
+        shape_file=str(Path('workflow/2_Miscellaneous/shape_of_demand.csv').resolve())
+    )
     
     print('Step 10 finished\n')
     
@@ -212,7 +231,7 @@ if run_RDM == 'Yes':
     'Step 11: Execute RDM experiment'
     start3 = time.time()
     print('Start Output Dataset Creator\n')
-    AUX.run_scripts('./workflow/1_Experiment/1_output_dataset_creator.py')
+    AUX.run_scripts(str(Path('workflow/1_Experiment/1_output_dataset_creator.py')))
     
     print('Step 11 finished\n')
     end_3 = time.time()

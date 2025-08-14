@@ -884,7 +884,7 @@ def generate_df_per_param(scenario_code_name, data_per_param, num_time_slices_SD
             ##################################
             # 8 ##############################
             ##################################
-            if 'DiscountRate' in param:
+            if 'DiscountRate' == param:
     
                 region=list()
                 series_tiempo=list()

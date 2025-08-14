@@ -884,7 +884,7 @@ def generate_df_per_param(scenario_code_name, data_per_param, num_time_slices_SD
             ##################################
             # 8 ##############################
             ##################################
-            if 'DiscountRate' in param:
+            if 'DiscountRate' == param:
     
                 region=list()
                 series_tiempo=list()
@@ -910,29 +910,30 @@ def generate_df_per_param(scenario_code_name, data_per_param, num_time_slices_SD
 
             ##################################
             # 9 ##############################
-            ##################################
+            ##################################                   
             if 'DiscountRateIdv' == param:
                 
-                tec=matriz[1].split(' ')
-                if tec[len(tec)-1]==':=\n':
-                    tec=tec[0:len(matriz[1].split(' '))-1]
-                tec[len(tec)-1]=tec[len(tec)-1].replace(':=\n','')
+                region=matriz[1].split(',')[0].replace(',','').replace('[','')
+                anios=matriz[2].split(' ')
+                if anios[len(anios)-1]==':=\n':
+                    anios=anios[0:len(matriz[2].split(' '))-1]
+                anios[len(anios)-1]=anios[len(anios)-1]
+
                 
-                region=list()
-                serie_datos=list()
-                for j in range(2,len(matriz)):
-                    region.append(matriz[j].split(' ')[0])
-                    serie_datos.append(matriz[j].split(' ')[1:])
-                for j in range(len(serie_datos)):
-                    serie_datos[j][len(serie_datos[j])-1]=serie_datos[j][len(serie_datos[j])-1].replace('\n','')
-                    if serie_datos[j][len(serie_datos[j])-1].replace('\n', '') == '':
-                            serie_datos[j].pop(len(serie_datos[j])-1)
-    
+                tec=list()
+                series_tiempo=list()
+                for j in range(3,len(matriz)):
+                    tec.append(matriz[j].split(' ')[0])
+                    series_tiempo.append(matriz[j].split(' ')[1:])
+                for j in range(len(series_tiempo)):
+                    series_tiempo[j][len(series_tiempo[j])-1]=series_tiempo[j][len(series_tiempo[j])-1].replace('\n','')
+                    if series_tiempo[j][len(series_tiempo[j])-1].replace('\n', '') == '':
+                        series_tiempo[j].pop(len(series_tiempo[j])-1)
                 
                 matriz_escribir=list()
-                for j in range(len(serie_datos)):
-                    for k in range(len(serie_datos[j])):
-                        matriz_escribir.append(['DiscountRateIdv',scenario_code_name,region[j],tec[k],'','','','','','','','','','','','',serie_datos[j][k]])
+                for j in range(len(series_tiempo)):
+                    for k in range(len(series_tiempo[j])):
+                        matriz_escribir.append(['DiscountRateIdv',scenario_code_name,region,tec[j],'','','',anios[k],'','','','','','','','',series_tiempo[j][k]])
                     
                 # Store data
                 if matriz_escribir != list():

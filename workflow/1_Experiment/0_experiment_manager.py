@@ -1357,41 +1357,33 @@ if __name__ == '__main__':
                                     this_set_range_indices = this_set_range_indices_first
                                     this_set_range_indices.sort()
                                     
-                                    if this_parameter in ['DiscountRateIdv']:
-                                        # No need to "extract time" as we are working with a param fixed in time
-                                        # extracting value:
-                                        value_list = deepcopy( inherited_scenarios[ scenario_list[s] ][ f ][ this_parameter ]['value'][ this_set_range_indices[0]:this_set_range_indices[-1]+1 ] )
-                                        value_list = [ float( value_list[j] ) for j in range( len( value_list ) ) ]
-                                        # assign new value
-                                        new_value_list = [xx*float(Values_per_Future[fut_id]) for xx in value_list]
-                                    else:
-                                        # for each index we extract the time and value in a list:
-                                        # extracting time:
-                                        time_list = deepcopy( inherited_scenarios[ scenario_list[s] ][ f ][ this_parameter ]['y'][ this_set_range_indices[0]:this_set_range_indices[-1]+1 ] )
-                                        time_list = [ int( time_list[j] ) for j in range( len( time_list ) ) ]
-                                        # extracting value:
-                                        value_list = deepcopy( inherited_scenarios[ scenario_list[s] ][ f ][ this_parameter ]['value'][ this_set_range_indices[0]:this_set_range_indices[-1]+1 ] )
-                                        value_list = [ float( value_list[j] ) for j in range( len( value_list ) ) ]
-                                        #--------------------------------------------------------------------#
-                                        if this_parameter == 'TotalTechnologyAnnualActivityLowerLimit':
-                                            this_set_range_indices_upper = [ i for i, x in enumerate( inherited_scenarios[ scenario_list[ s ] ][ f ][ 'TotalTechnologyAnnualActivityUpperLimit' ][ tsfirst ] ) if x == str( this_set_first ) ]
-                                            # find elements in common
-                                            this_set_range_indices_upper.sort()
-                                            if this_set_range_indices_upper != []:
-                                                value_list_upper = deepcopy( inherited_scenarios[ scenario_list[s] ][ f ][ 'TotalTechnologyAnnualActivityUpperLimit' ]['value'][ this_set_range_indices_upper[0]:this_set_range_indices_upper[-1]+1 ] )
-                                                # Get gap between Upper and Lower Limit
-                                                gap_list = [upper - lower for upper, lower in zip(value_list_upper, value_list)]
-                                        #--------------------------------------------------------------------#
-                                        # now that the value is extracted, we must manipulate the result and assign back
-                                        if Math_Type == 'Time_Series':
-                                            new_value_list = deepcopy(AUX.interpolation_non_linear_final(time_list, value_list, float(Values_per_Future[fut_id]), last_year_analysis, Initial_Year_of_Uncertainty))
-                                        elif Math_Type == 'Constant':
-                                            new_value_list = deepcopy(AUX.interpolation_constant_trajectory(time_list, value_list, Initial_Year_of_Uncertainty))
-                                        elif Math_Type == 'Linear':
-                                            new_value_list = deepcopy(AUX.interpolation_linear(time_list, value_list, float(Values_per_Future[fut_id]), last_year_analysis, Initial_Year_of_Uncertainty))
-                                        elif Math_Type == 'Logistic':
-                                            new_value_list = deepcopy(AUX.interpolation_logistic_trajectory(time_list, value_list, float(Values_per_Future[fut_id]), last_year_analysis, Initial_Year_of_Uncertainty))
-                                           
+                                    # for each index we extract the time and value in a list:
+                                    # extracting time:
+                                    time_list = deepcopy( inherited_scenarios[ scenario_list[s] ][ f ][ this_parameter ]['y'][ this_set_range_indices[0]:this_set_range_indices[-1]+1 ] )
+                                    time_list = [ int( time_list[j] ) for j in range( len( time_list ) ) ]
+                                    # extracting value:
+                                    value_list = deepcopy( inherited_scenarios[ scenario_list[s] ][ f ][ this_parameter ]['value'][ this_set_range_indices[0]:this_set_range_indices[-1]+1 ] )
+                                    value_list = [ float( value_list[j] ) for j in range( len( value_list ) ) ]
+                                    #--------------------------------------------------------------------#
+                                    if this_parameter == 'TotalTechnologyAnnualActivityLowerLimit':
+                                        this_set_range_indices_upper = [ i for i, x in enumerate( inherited_scenarios[ scenario_list[ s ] ][ f ][ 'TotalTechnologyAnnualActivityUpperLimit' ][ tsfirst ] ) if x == str( this_set_first ) ]
+                                        # find elements in common
+                                        this_set_range_indices_upper.sort()
+                                        if this_set_range_indices_upper != []:
+                                            value_list_upper = deepcopy( inherited_scenarios[ scenario_list[s] ][ f ][ 'TotalTechnologyAnnualActivityUpperLimit' ]['value'][ this_set_range_indices_upper[0]:this_set_range_indices_upper[-1]+1 ] )
+                                            # Get gap between Upper and Lower Limit
+                                            gap_list = [upper - lower for upper, lower in zip(value_list_upper, value_list)]
+                                    #--------------------------------------------------------------------#
+                                    # now that the value is extracted, we must manipulate the result and assign back
+                                    if Math_Type == 'Time_Series':
+                                        new_value_list = deepcopy(AUX.interpolation_non_linear_final(time_list, value_list, float(Values_per_Future[fut_id]), last_year_analysis, Initial_Year_of_Uncertainty))
+                                    elif Math_Type == 'Constant':
+                                        new_value_list = deepcopy(AUX.interpolation_constant_trajectory(time_list, value_list, Initial_Year_of_Uncertainty))
+                                    elif Math_Type == 'Linear':
+                                        new_value_list = deepcopy(AUX.interpolation_linear(time_list, value_list, float(Values_per_Future[fut_id]), last_year_analysis, Initial_Year_of_Uncertainty))
+                                    elif Math_Type == 'Logistic':
+                                        new_value_list = deepcopy(AUX.interpolation_logistic_trajectory(time_list, value_list, float(Values_per_Future[fut_id]), last_year_analysis, Initial_Year_of_Uncertainty))
+                                       
                                             
                                             
                                             

@@ -1,0 +1,7 @@
+|--- demand_2050_sum <= 202.84
+|   |--- class: 1
+|--- demand_2050_sum >  202.84
+|   |--- capex_geo_2050_mean <= 1028.84
+|   |   |--- class: 0
+|   |--- capex_geo_2050_mean >  1028.84
+|   |   |--- class: 1

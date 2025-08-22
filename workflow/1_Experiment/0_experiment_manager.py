@@ -1170,6 +1170,7 @@ if __name__ == '__main__':
                                             num_time_slices_SDP)
         
         parameters_without_values.sort()
+        parameters_without_values = list(dict.fromkeys(parameters_without_values))
         dict_parameters_without_values[scenario_list[scen]] = parameters_without_values
         parameters_in_the_model = list(dict_dataframes.keys())
         dict_parameters_in_the_model[scenario_list[scen]] = parameters_in_the_model

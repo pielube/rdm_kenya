@@ -125,7 +125,7 @@ g.set_axis_labels("Year", "Total Capacity Annual")
 
 ###
 # Find global min and max across all panels
-ymin, ymax = df_all["TotalCapacityAnnual"].min(), df_all["TotalCapacityAnnual"].max()
+ymin, ymax = 0,18# df_all["TotalCapacityAnnual"].min(), df_all["TotalCapacityAnnual"].max()
 for ax in g.axes.flatten():
     ax.set_ylim(ymin, ymax)
 ###

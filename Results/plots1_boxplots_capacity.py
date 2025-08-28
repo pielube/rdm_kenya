@@ -86,7 +86,7 @@ def plot_capacity_boxplot_for_prefix(
 
 techs = ["PWRNGS", "PWRSOL", "PWRWND", "PWRGEO", 
          "BESS_TECH", "PWRBIO", 
-         "PWRHFO", "PWRHYD", "PWRPHS"]
+         "PWRHFO", "PWRHYD", "PWRPHS", "PWRURN"]
 
 
 # Build aggregated dataset: one row per (Future.ID, YEAR, prefix)

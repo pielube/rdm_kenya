@@ -48,25 +48,30 @@ def read_table(path):
 def build_features(inputs: pd.DataFrame) -> pd.DataFrame:
     if "Scen_fut" not in inputs.columns:
         raise ValueError("Expected 'Scen_fut' key column in inputs.")
-
+    
+    
     def to_num(s):
         return pd.to_numeric(s, errors="coerce")
-
+    
+    
     feats = []
     for scen, sub in inputs.groupby("Scen_fut", sort=False):
         f = {"Scen_fut": scen}
         sub50 = sub.loc[sub.get("YEAR").eq(2050) if "YEAR" in sub.columns else []]
-
-        # (1) SpecifiedAnnualDemand in 2050 summed
-        f["demand_2050_sum"] = to_num(sub50.get("SpecifiedAnnualDemand", np.nan)).sum()
-
+    
+    
+        # # (1) SpecifiedAnnualDemand in 2050 summed
+        # f["demand_2050_sum"] = to_num(sub50.get("SpecifiedAnnualDemand", np.nan)).sum()
+        
         # (2) CapitalCost in 2050 over PWRGEO*
         if {"TECHNOLOGY", "CapitalCost"}.issubset(sub50.columns):
             geo50 = sub50.loc[sub50["TECHNOLOGY"].astype(str).str.startswith("PWRGEO")]
-            f["capex_geo_2050_mean"] = to_num(geo50["CapitalCost"]).mean() if not geo50.empty else np.nan
+            vals = to_num(geo50["CapitalCost"])
+            vals = vals[(~vals.isna()) & (vals != 0)]
+            f["capex_geo_2050_mean"] = vals.mean() if not vals.empty else np.nan
         else:
             f["capex_geo_2050_mean"] = np.nan
-
+    
         # (3) VariableCost of IMPNGS in 2050 (drop 0 and NaN), median
         if {"TECHNOLOGY", "VariableCost"}.issubset(sub50.columns):
             gas50 = sub50.loc[sub50["TECHNOLOGY"].astype(str) == "IMPNGS", "VariableCost"]
@@ -75,10 +80,81 @@ def build_features(inputs: pd.DataFrame) -> pd.DataFrame:
             f["gas_price_2050_median_nonzero"] = gas50.median() if not gas50.empty else np.nan
         else:
             f["gas_price_2050_median_nonzero"] = np.nan
-
+            
+        # (4) CapitalCost in 2050 over PWRURN (nuclear)
+        if {"TECHNOLOGY", "CapitalCost"}.issubset(sub50.columns):
+            nuc50 = sub50.loc[sub50["TECHNOLOGY"].astype(str).str.startswith("PWRURN")]
+            vals = to_num(nuc50["CapitalCost"])
+            vals = vals[(~vals.isna()) & (vals != 0)]
+            f["capex_nuc_2050_mean"] = vals.mean() if not vals.empty else np.nan
+        else:
+            f["capex_nuc_2050_mean"] = np.nan
+            
+        # (5) CapitalCost in 2050 over BESS_TECH (batteries)
+        if {"TECHNOLOGY", "CapitalCost"}.issubset(sub50.columns):
+            nuc50 = sub50.loc[sub50["TECHNOLOGY"].astype(str).str.startswith("BESS_TECH")]
+            vals = to_num(nuc50["CapitalCost"])
+            vals = vals[(~vals.isna()) & (vals != 0)]
+            f["capex_bess_2050_mean"] = vals.mean() if not vals.empty else np.nan
+        else:
+            f["capex_bess_2050_mean"] = np.nan
+            
+        # (6) CapitalCost in 2050 over PWRSOL (solar)
+        if {"TECHNOLOGY", "CapitalCost"}.issubset(sub50.columns):
+            nuc50 = sub50.loc[sub50["TECHNOLOGY"].astype(str).str.startswith("PWRSOL")]
+            vals = to_num(nuc50["CapitalCost"])
+            vals = vals[(~vals.isna()) & (vals != 0)]
+            f["capex_solar_2050_mean"] = vals.mean() if not vals.empty else np.nan
+        else:
+            f["capex_solar_2050_mean"] = np.nan
+            
+        # (7) CapitalCost in 2050 over PWRWND (wind)
+        if {"TECHNOLOGY", "CapitalCost"}.issubset(sub50.columns):
+            nuc50 = sub50.loc[sub50["TECHNOLOGY"].astype(str).str.startswith("PWRSOL")]
+            vals = to_num(nuc50["CapitalCost"])
+            vals = vals[(~vals.isna()) & (vals != 0)]
+            f["capex_wind_2050_mean"] = vals.mean() if not vals.empty else np.nan
+        else:
+            f["capex_wind_2050_mean"] = np.nan
+        
+        # (8) Global discount rate (DiscountRate)
+        if "DiscountRate" in sub.columns:
+            vals = to_num(sub["DiscountRate"])
+            vals = vals[(~vals.isna()) & (vals != 0)]
+            f["discount_rate_global"] = vals.iloc[0] if not vals.empty else np.nan
+        else:
+            f["discount_rate_global"] = np.nan
+        
+        # (9) Technology-specific discount rate (DiscountRateIdv), averaged over time & techs
+        if "DiscountRateIdv" in sub.columns:
+            vals = to_num(sub["DiscountRateIdv"])
+            vals = vals[(~vals.isna()) & (vals != 0)]
+            f["discount_rate_idv_mean"] = vals.mean() if not vals.empty else np.nan
+        else:
+            f["discount_rate_idv_mean"] = np.nan
+        
+        # (10) DiscountRateIdv for batteries (BESS_TECH) in 2050
+        if {"TECHNOLOGY", "YEAR", "DiscountRateIdv"}.issubset(sub.columns):
+            bat50 = sub.loc[(sub["TECHNOLOGY"].astype(str).str.startswith("BESS_TECH")) & (sub["YEAR"] == 2050)]
+            vals = to_num(bat50["DiscountRateIdv"])
+            vals = vals[(~vals.isna()) & (vals != 0)]
+            f["discount_rate_batt_2050"] = vals.mean() if not vals.empty else np.nan
+        else:
+            f["discount_rate_batt_2050"] = np.nan
+    
         feats.append(f)
-
+    
     X = pd.DataFrame(feats)
+    
+    # Drop all-NaN columns; keep Scen_fut
+    keep_cols = [c for c in X.columns if c == "Scen_fut" or X[c].notna().any()]
+    X = X[keep_cols]
+
+    # Quick variability report
+    nunique = X.drop(columns=["Scen_fut"]).nunique(dropna=True)
+    print("Feature variability (nunique):")
+    print(nunique.sort_values())
+    
     return X
 
 

@@ -6,29 +6,32 @@ Created on Fri Apr 19 18:37:25 2024
 """
 
 import os
+import time
 import pandas as pd
 import yaml
 from copy import deepcopy
 import sys
 import shutil
 import numpy as np
+try:
+    from annualized_investment_cost import add_annualized_investment_cost
+except Exception:
+    # Fallback if executed as a module within a package
+    from .annualized_investment_cost import add_annualized_investment_cost  # type: ignore
 
 def get_config_main_path(full_path, base_folder='3_Postprocessing'):
-    # Split the path into parts
+    """
+    Resolve a path under the repository's 'workflow' folder.
+    Ensures returned path looks like: <repo>/workflow/<base_folder>/
+    """
     parts = full_path.split(os.sep)
-    
-    # Find the index of the target directory 'src'
-    target_index = parts.index('src') if 'src' in parts else None
-    
-    # If the directory is found, reconstruct the path up to that point
-    if target_index is not None:
-        base_path = os.sep.join(parts[:target_index + 1])
+    # Anchor at 'workflow' if present; else use the provided full_path
+    if 'workflow' in parts:
+        base_path = os.sep.join(parts[: parts.index('workflow') + 1])
     else:
-        base_path = full_path  # If not found, return the original path
-    
+        base_path = full_path
     # Append the specified directory to the base path
     appended_path = os.path.join(base_path, base_folder) + os.sep
-    
     return appended_path
 
 def load_and_process_yaml(path):
@@ -141,6 +144,14 @@ if __name__ == '__main__':
     tier_by_path = main_path[2]
     solver = main_path[3]
     list_scenarios = main_path[4]
+    # Optional override for scenario name (e.g., --scenario=Scenario1)
+    for arg in main_path[5:]:
+        if isinstance(arg, str) and arg.startswith('--scenario='):
+            scen = arg.split('=', 1)[1]
+            break
+    # Optional flags
+    force_run = ('--force' in main_path) or (os.environ.get('POSTPROC_FORCE', '').lower() in ('1','true','yes'))
+    debug = ('--debug' in main_path) or (os.environ.get('POSTPROC_DEBUG', '').lower() in ('1','true','yes'))
     
     
     # case = 'BAU_0'
@@ -153,9 +164,12 @@ if __name__ == '__main__':
     option = str()
     
     # Read yaml file with parameterization
-    file_config_address = get_config_main_path(os.path.abspath(''))
+    # Always resolve config relative to this script: <repo>/workflow/3_Postprocessing/
+    file_config_address = os.path.dirname(os.path.abspath(__file__))
 
     params = load_and_process_yaml(os.path.join(file_config_address,'config_concatenate.yaml'))
+
+    # Note: No YAML fallbacks for AIC — rely on parquet inputs only
         
     sets_corrects = deepcopy(params['sets_otoole'])
     sets_corrects.insert(0,'Parameter')
@@ -233,6 +247,7 @@ if __name__ == '__main__':
             file_df_dir = tier_dir.replace(f'{out_quick}\\', '')
         
         
+            total_t0 = time.perf_counter()
             if os.path.exists(tier_dir):
                 csv_file_list = os.listdir(tier_dir)
                 
@@ -264,8 +279,14 @@ if __name__ == '__main__':
                                     # Remove the last character from the specified line
                                     sol_status_line = line[22:29]
                 
-                if (solver and sol_status_line[0:7] == 'Optimal') or (solver == 'glpk' and sol_status_line == 'OPTIMAL') or (solver == 'cplex' and sol_status_line == 'optimal'):
-                    file_status.write(f'\n{case}: Optimal solution.')
+                is_optimal = ((solver and sol_status_line[0:7] == 'Optimal') or 
+                              (solver == 'glpk' and sol_status_line == 'OPTIMAL') or 
+                              (solver == 'cplex' and sol_status_line == 'optimal'))
+                if is_optimal or force_run:
+                    if is_optimal:
+                        file_status.write(f'\n{case}: Optimal solution.')
+                    else:
+                        file_status.write(f'\n{case}: Forced post-processing (no solver status).')
                 
                     df_list = []
                     
@@ -277,7 +298,10 @@ if __name__ == '__main__':
                     
                     for f in csv_file_list:
                         
+                        t_read_csv = time.perf_counter()
                         local_df = pd.read_csv(os.path.join(tier_dir,f))
+                        if debug:
+                            print(f"[POSTPROC] Read CSV {f} shape={local_df.shape} in {time.perf_counter()-t_read_csv:.3f}s")
                         
                         
                         # Delete columns of sets do not use in otoole config yaml
@@ -333,10 +357,25 @@ if __name__ == '__main__':
                     #         calculate_npv(df_all_3, parameters_news[k], parameters_reference[k], params['round_#'], 'YEAR', output_csv_r=params['disc_rate']*100, output_csv_year=params['year_apply_discount_rate'])
                                         
                     
+                    # Compute Annualized Investment Cost column (if inputs available)
+                    try:
+                        df_all_3 = add_annualized_investment_cost(
+                            df_all_3,
+                            case_folder_path=sol_folder,
+                            discount_rate=0.0,
+                            default_operational_life=None,
+                        )
+                    except Exception:
+                        # Fail-safe: do not block pipeline if helper fails
+                        pass
+
                     # The 'outer' join ensures that all combinations of dimension values are included, filling missing values with NaN
                     # df_all_3.to_csv(f'{file_df_dir}/Data_Output_{case[-1]}.csv')
 
+                    t_write_csv = time.perf_counter()
                     df_all_3.to_csv(f'{sol_folder}/{case}_Output.csv')
+                    if debug:
+                        print(f"[POSTPROC] Wrote {case}_Output.csv in {time.perf_counter()-t_write_csv:.3f}s")
     
                     # Delete Outputs folder with otoole csvs files
                     if params['del_files']:
@@ -345,8 +384,8 @@ if __name__ == '__main__':
                             shutil.rmtree(outputs_otoole_csvs)
                     
                         # Delete glp, lp, txt and sol files
-                        if params['del_files'] and (solver == 'cplex' or solver == 'cbc'):
-                            delete_files(sol_file, params['solver'])
+                    if sol_file and params['del_files'] and (solver == 'cplex' or solver == 'cbc'):
+                        delete_files(sol_file, params['solver'])
 
                 else:
                     # Delete Outputs folder with otoole csvs files
@@ -356,6 +395,43 @@ if __name__ == '__main__':
                             shutil.rmtree(outputs_otoole_csvs)
                     
                         # Delete glp, lp, txt and sol files
-                        if params['del_files'] and (solver == 'cplex' or solver == 'cbc'):
+                        if sol_file and params['del_files'] and (solver == 'cplex' or solver == 'cbc'):
                             delete_files(sol_file, solver)
                     file_status.write(f'\n{case}: Infeasible solution.')
+            else:
+                # Fallback path when Outputs folder is missing: use case Output parquet directly
+                # Build normalized case directory using scenario and case
+                repo_root = os.path.abspath('')
+                futures_root = os.path.join(repo_root, 'workflow', '1_Experiment', 'Experimental_Platform', 'Futures')
+                sol_folder = os.path.join(futures_root, scen, case)
+                parquet_output = os.path.join(sol_folder, f"{case}_Output.parquet")
+                if os.path.isfile(parquet_output):
+                    try:
+                        t_read_parquet = time.perf_counter()
+                        df_all_3 = pd.read_parquet(parquet_output, engine='pyarrow')
+                        if debug:
+                            print(f"[POSTPROC] Read output parquet '{parquet_output}' shape={df_all_3.shape} in {time.perf_counter()-t_read_parquet:.3f}s")
+                        # Compute Annualized Investment Cost column
+                        try:
+                            t_aic = time.perf_counter()
+                            df_all_3 = add_annualized_investment_cost(
+                                df_all_3,
+                                case_folder_path=sol_folder,
+                                discount_rate=0.0,
+                                default_operational_life=None,
+                                debug=debug,
+                            )
+                            if debug:
+                                print(f"[POSTPROC] add_annualized_investment_cost took {time.perf_counter()-t_aic:.3f}s")
+                        except Exception:
+                            pass
+                        # Write CSV next to parquet
+                        t_write_csv = time.perf_counter()
+                        df_all_3.to_csv(os.path.join(sol_folder, f"{case}_Output.csv"), index=False)
+                        if debug:
+                            print(f"[POSTPROC] Wrote {case}_Output.csv in {time.perf_counter()-t_write_csv:.3f}s")
+                        file_status.write(f'\n{case}: Forced post-processing from parquet output.')
+                    except Exception as e:
+                        file_status.write(f'\n{case}: Failed post-processing from parquet output: {e}')
+            if debug:
+                print(f"[POSTPROC] Total time for case {case}: {time.perf_counter()-total_t0:.3f}s")

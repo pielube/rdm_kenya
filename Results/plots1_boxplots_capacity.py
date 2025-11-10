@@ -84,9 +84,9 @@ def plot_capacity_boxplot_for_prefix(
 
 # --- 4b) All plots in one figure ---
 
-techs = ["PWRNGS", "PWRSOL", "PWRWND", "PWRGEO", 
-         "BESS_TECH", "PWRBIO", 
-         "PWRHFO", "PWRHYD", "PWRPHS", "PWRURN"]
+techs = ["PWRNGS"]#, "PWRSOL", "PWRWND", "PWRGEO", 
+         #"BESS_TECH", "PWRBIO", 
+         #"PWRHFO", "PWRHYD", "PWRPHS", "PWRURN", "IMPELC", "BACKSTOP"]
 
 
 # Build aggregated dataset: one row per (Future.ID, YEAR, prefix)
@@ -117,15 +117,16 @@ g = sns.catplot(
     col="TechGroup", col_wrap=3,
     kind="box", sharey=False,
     height=3.5, aspect=1.2,
-    order=year_order
+    order=year_order,
+    whis=[1,99]
 )
 
 g.set_titles("{col_name}")
-g.set_axis_labels("Year", "Total Capacity Annual")
+g.set_axis_labels("Year", "Installed capacity [GW]")
 
 ###
 # Find global min and max across all panels
-ymin, ymax = 0,18# df_all["TotalCapacityAnnual"].min(), df_all["TotalCapacityAnnual"].max()
+ymin, ymax = df_all["TotalCapacityAnnual"].min(), df_all["TotalCapacityAnnual"].max()
 for ax in g.axes.flatten():
     ax.set_ylim(ymin, ymax)
 ###

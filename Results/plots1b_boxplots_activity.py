@@ -93,7 +93,7 @@ def plot_capacity_boxplot_for_prefix(
 
 techs = ["PWRNGS", "PWRSOL", "PWRWND", "PWRGEO", 
          "BESS_TECH", "PWRBIO", 
-         "PWRHFO", "PWRHYD", "PWRPHS"]
+         "PWRHFO", "PWRHYD", "PWRPHS", "PWRURN", "IMPELC", "BACKSTOP"]
 
 
 # Build aggregated dataset: one row per (Future.ID, YEAR, prefix)
@@ -124,11 +124,12 @@ g = sns.catplot(
     col="TechGroup", col_wrap=3,
     kind="box", sharey=False,
     height=3.5, aspect=1.2,
-    order=year_order
+    order=year_order,
+    whis=[1,99]
 )
 
 g.set_titles("{col_name}")
-g.set_axis_labels("Year", "Total Activity Annual")
+g.set_axis_labels("Year", "Annual activity [PJ]")
 
 ###
 # # Find global min and max across all panels

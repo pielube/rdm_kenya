@@ -92,8 +92,8 @@ def build_features(inputs: pd.DataFrame) -> pd.DataFrame:
         sub50 = sub.loc[sub.get("YEAR").eq(2050) if "YEAR" in sub.columns else []]
     
     
-        # # (1) SpecifiedAnnualDemand in 2050 summed
-        # f["demand_2050_sum"] = to_num(sub50.get("SpecifiedAnnualDemand", np.nan)).sum()
+        # (1) SpecifiedAnnualDemand in 2050 summed
+        f["demand_2050_sum"] = to_num(sub50.get("SpecifiedAnnualDemand", np.nan)).sum()
         
         # (2) CapitalCost in 2050 over PWRGEO*
         if {"TECHNOLOGY", "CapitalCost"}.issubset(sub50.columns):

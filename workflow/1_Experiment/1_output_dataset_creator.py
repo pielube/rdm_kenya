@@ -101,7 +101,14 @@ if __name__ == '__main__':
     df_output = dfa_list[0]
     output_path = os.path.join('Results','OSEMOSYS_Energy_Output.csv')
     df_output.to_csv ( output_path, index = None, header=True)
+    # Also write under 1_Experiment/Results for convenience
+    exp_results_dir = os.path.join('workflow','1_Experiment','Results')
+    if not os.path.exists(exp_results_dir):
+        os.makedirs(exp_results_dir)
+    df_output.to_csv(os.path.join(exp_results_dir,'OSEMOSYS_Energy_Output.csv'), index=None, header=True)
     #
     df_input = dfa_list[1]
     input_path = os.path.join('Results','OSEMOSYS_Energy_Input.csv')
     df_input.to_csv ( input_path, index = None, header=True)
+    # Mirror input under 1_Experiment/Results as well
+    df_input.to_csv(os.path.join(exp_results_dir,'OSEMOSYS_Energy_Input.csv'), index=None, header=True)

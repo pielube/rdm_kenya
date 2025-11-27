@@ -55,6 +55,7 @@ INPUTS_CSV = "OSEMOSYS_Energy_Input.csv"
 OUTPUTS_CSV = "OSEMOSYS_Energy_Output.csv"
 OUTDIR = "prim_artifacts"
 QUANTILE = 0.90  # cost quantile to define 'cases of interest' (high cost)
+RANDOM_STATE = 42
 
 os.makedirs(OUTDIR, exist_ok=True)
 
@@ -100,18 +101,18 @@ def build_features(inputs: pd.DataFrame) -> pd.DataFrame:
             geo50 = sub50.loc[sub50["TECHNOLOGY"].astype(str).str.startswith("PWRGEO")]
             vals = to_num(geo50["CapitalCost"])
             vals = vals[(~vals.isna()) & (vals != 0)]
-            f["capex_geo_2050_mean"] = vals.mean() if not vals.empty else np.nan
+            f["Geothermal cost\n[USD/kW]"] = vals.mean() if not vals.empty else np.nan
         else:
-            f["capex_geo_2050_mean"] = np.nan
+            f["Geothermal cost\n[USD/kW]"] = np.nan
     
-        # # (3) VariableCost of IMPNGS in 2050 (drop 0 and NaN), median
-        # if {"TECHNOLOGY", "VariableCost"}.issubset(sub50.columns):
-        #     gas50 = sub50.loc[sub50["TECHNOLOGY"].astype(str) == "IMPNGS", "VariableCost"]
-        #     gas50 = to_num(gas50)
-        #     gas50 = gas50[(~gas50.isna()) & (gas50 != 0)]
-        #     f["gas_price_2050_median_nonzero"] = gas50.median() if not gas50.empty else np.nan
-        # else:
-        #     f["gas_price_2050_median_nonzero"] = np.nan
+        # (3) VariableCost of IMPNGS in 2050 (drop 0 and NaN), median
+        if {"TECHNOLOGY", "VariableCost"}.issubset(sub50.columns):
+            gas50 = sub50.loc[sub50["TECHNOLOGY"].astype(str) == "IMPNGS", "VariableCost"]
+            gas50 = to_num(gas50)
+            gas50 = gas50[(~gas50.isna()) & (gas50 != 0)]
+            f["Gas price\n[MUSD/PJ]"] = gas50.median() if not gas50.empty else np.nan
+        else:
+            f["Gas price\n[MUSD/PJ]"] = np.nan
             
         # # (4) CapitalCost in 2050 over PWRURN (nuclear)
         # if {"TECHNOLOGY", "CapitalCost"}.issubset(sub50.columns):
@@ -127,18 +128,18 @@ def build_features(inputs: pd.DataFrame) -> pd.DataFrame:
             nuc50 = sub50.loc[sub50["TECHNOLOGY"].astype(str).str.startswith("BESS_TECH")]
             vals = to_num(nuc50["CapitalCost"])
             vals = vals[(~vals.isna()) & (vals != 0)]
-            f["capex_bess_2050_mean"] = vals.mean() if not vals.empty else np.nan
+            f["BESS cost\n[USD/kW]"] = vals.mean() if not vals.empty else np.nan
         else:
-            f["capex_bess_2050_mean"] = np.nan
+            f["BESS cost\n[USD/kW]"] = np.nan
             
-        # # (6) CapitalCost in 2050 over PWRSOL (solar)
-        # if {"TECHNOLOGY", "CapitalCost"}.issubset(sub50.columns):
-        #     nuc50 = sub50.loc[sub50["TECHNOLOGY"].astype(str).str.startswith("PWRSOL")]
-        #     vals = to_num(nuc50["CapitalCost"])
-        #     vals = vals[(~vals.isna()) & (vals != 0)]
-        #     f["capex_solar_2050_mean"] = vals.mean() if not vals.empty else np.nan
-        # else:
-        #     f["capex_solar_2050_mean"] = np.nan
+        # (6) CapitalCost in 2050 over PWRSOL (solar)
+        if {"TECHNOLOGY", "CapitalCost"}.issubset(sub50.columns):
+            nuc50 = sub50.loc[sub50["TECHNOLOGY"].astype(str).str.startswith("PWRSOL")]
+            vals = to_num(nuc50["CapitalCost"])
+            vals = vals[(~vals.isna()) & (vals != 0)]
+            f["PV cost\n[USD/kW]"] = vals.mean() if not vals.empty else np.nan
+        else:
+            f["PV cost\n[USD/kW]"] = np.nan
             
         # # (7) CapitalCost in 2050 over PWRWND (wind)
         # if {"TECHNOLOGY", "CapitalCost"}.issubset(sub50.columns):
@@ -149,13 +150,13 @@ def build_features(inputs: pd.DataFrame) -> pd.DataFrame:
         # else:
         #     f["capex_wind_2050_mean"] = np.nan
         
-        # # (8) Global discount rate (DiscountRate)
-        # if "DiscountRate" in sub.columns:
-        #     vals = to_num(sub["DiscountRate"])
-        #     vals = vals[(~vals.isna()) & (vals != 0)]
-        #     f["discount_rate_global"] = vals.iloc[0] if not vals.empty else np.nan
-        # else:
-        #     f["discount_rate_global"] = np.nan
+        # (8) Global discount rate (DiscountRate)
+        if "DiscountRate" in sub.columns:
+            vals = to_num(sub["DiscountRate"])
+            vals = vals[(~vals.isna()) & (vals != 0)]
+            f["Global DR\n[-]"] = vals.iloc[0] if not vals.empty else np.nan
+        else:
+            f["Global DR\n[-]"] = np.nan
         
         # # (9) Technology-specific discount rate (DiscountRateIdv), averaged over time & techs
         # if "DiscountRateIdv" in sub.columns:
@@ -170,9 +171,9 @@ def build_features(inputs: pd.DataFrame) -> pd.DataFrame:
             bat50 = sub.loc[(sub["TECHNOLOGY"].astype(str).str.startswith("BESS_TECH")) & (sub["YEAR"] == 2050)]
             vals = to_num(bat50["DiscountRateIdv"])
             vals = vals[(~vals.isna()) & (vals != 0)]
-            f["discount_rate_batt_2050"] = vals.mean() if not vals.empty else np.nan
+            f["BESS DR\n[-]"] = vals.mean() if not vals.empty else np.nan
         else:
-            f["discount_rate_batt_2050"] = np.nan
+            f["BESS DR\n[-]"] = np.nan
     
         feats.append(f)
     
@@ -212,7 +213,7 @@ def build_outcome_no_gas_2050(outputs: pd.DataFrame) -> pd.DataFrame:
     gas2050 = (
         out.loc[(out["YEAR"] == 2050) & (out["TECHNOLOGY"].astype(str) == "PWRNGS001")]
         .groupby("Scen_fut")["TotalCapacityAnnual"].sum()
-        .rename("gas_cap_2050")
+        .rename("gas_cap")
         .reset_index()
     )
 
@@ -221,56 +222,63 @@ def build_outcome_no_gas_2050(outputs: pd.DataFrame) -> pd.DataFrame:
     gas2050 = gas2050.set_index("Scen_fut").reindex(all_scen, fill_value=0.0).reset_index()
 
     eps = 1e-6
-    gas2050["no_gas_2050"] = (gas2050["gas_cap_2050"].abs() <= eps).astype(int)
+    gas2050["no_gas"] = (gas2050["gas_cap"].abs() <= eps).astype(int)
 
-    return gas2050[["Scen_fut", "gas_cap_2050", "no_gas_2050"]]
-
-
-# ---- PRIM run --------------------------------------------------------------
+    return gas2050[["Scen_fut", "gas_cap", "no_gas"]]
 
 
-def run_prim(x: pd.DataFrame, y: pd.Series, threshold: float, outdir: str) -> None:
-    p = prim.Prim(x, y, threshold=threshold, threshold_type=">")
+
+# ----------------------------------------------------------------------
+# EMA-PRIM analysis
+# ----------------------------------------------------------------------
+
+from ema_workbench.analysis import prim as ema_prim
+PRIM_OUTDIR = "prim_artifacts_ema"
+YEAR = 2050  # <-- change this single value to analyse a different year
+
+
+def run_prim_ema(df: pd.DataFrame, feature_cols):
+    """Run EMA Workbench PRIM on the same features/outcome."""
+    X = df[feature_cols].apply(pd.to_numeric, errors="coerce")
+    y = df["no_gas"].values  # 1 = no gas (cases of interest)
+
+    # Prim object
+    p = ema_prim.Prim(X, y, threshold=0.5)  # focus on high no-gas
     box = p.find_box()
 
+    # Tradeoff plot
     try:
         fig = box.show_tradeoff()
-        if fig is not None and plt is not None:
-            fig.savefig(os.path.join(outdir, "prim_tradeoff.png"), bbox_inches="tight", dpi=200)
-    except Exception:
-        warnings.warn("Could not create tradeoff plot; continuing.")
+        if fig is not None:
+            trade_png = os.path.join(PRIM_OUTDIR, f"prim_tradeoff_no_gas_{YEAR}.png")
+            fig.savefig(trade_png, dpi=200, bbox_inches="tight")
+    except Exception as e:
+        print("PRIM tradeoff plot failed:", e)
 
+    # Pairwise scatter plot
     try:
         g = box.show_pairs_scatter()
         if g is not None:
-            g.fig.savefig(os.path.join(outdir, "prim_pairs.png"), bbox_inches="tight", dpi=200)
-    except Exception:
-        warnings.warn("Could not create pairs scatter; continuing.")
+            pairs_png = os.path.join(PRIM_OUTDIR, f"prim_pairs_no_gas_{YEAR}.png")
+            g.fig.savefig(pairs_png, dpi=200, bbox_inches="tight")
+    except Exception as e:
+        print("PRIM pairs plot failed:", e)
 
-    limits_path = os.path.join(outdir, "prim_box_limits.csv")
-    stats_path = os.path.join(outdir, "prim_box_stats.csv")
+    # Box limits & stats (if available)
+    limits_path = os.path.join(PRIM_OUTDIR, f"prim_box_limits_no_gas_{YEAR}.csv")
+    stats_path = os.path.join(PRIM_OUTDIR, f"prim_box_stats_no_gas_{YEAR}.csv")
     try:
-        data = box.inspect(style="data")  # returns list of (stats, box_lims)
+        data = box.inspect(style="data")  # list of (stats, box_lims)
         if isinstance(data, list) and data:
             stats, box_lims = data[-1]
             pd.DataFrame([stats]).to_csv(stats_path, index=False)
             box_lims.to_csv(limits_path, index=False)
-        else:
-            raise AttributeError
-    except Exception:
-        try:
-            if hasattr(box, "peeling_trajectory"):
-                pt = box.peeling_trajectory
-                pt.to_csv(stats_path, index=False)
-        except Exception:
-            pass
-        try:
-            if hasattr(p, "boxes"):
-                pd.DataFrame(p.boxes[-1]).to_csv(limits_path, index=False)
-        except Exception:
-            pass
+    except Exception as e:
+        print("PRIM inspect failed:", e)
 
-
+    print("PRIM (EMA) artifacts written to:", PRIM_OUTDIR)
+    
+    
 # ---- Main ------------------------------------------------------------------
 if __name__ == "__main__":
     inputs = pd.read_csv(INPUTS_CSV, low_memory=False)
@@ -287,55 +295,26 @@ if __name__ == "__main__":
 
     if df.empty:
         raise SystemExit("No scenarios with complete features/outcomes after merging.")
+    
+    #############
+    #############
+    
+    # dataset_path = os.path.join(CART_OUTDIR, f"dataset_no_gas_{YEAR}.csv")
+    # df.to_csv(dataset_path, index=False)
 
-    # Inspect class balance
-    n = len(df)
-    n_no = int(df["no_gas_2050"].sum())
-    n_yes = n - n_no
-    print(f"Scenarios: {n}  —  no_gas_2050 = 1 in {n_no} ({n_no/n:.1%}); 0 in {n_yes} ({n_yes/n:.1%})")
+    feature_cols = [c for c in df.columns if c not in ("Scen_fut", "gas_cap", "no_gas")]
 
-    # Save dataset
-    dataset_path = os.path.join(OUTDIR, "prim_dataset_no_gas_2050.csv")
-    df.to_csv(dataset_path, index=False)
+    print(f"Scenarios: {len(df)}, features: {len(feature_cols)}")
+    print("Feature variability (nunique):")
+    print(df[feature_cols].nunique(dropna=True).sort_values())
 
-    # Run PRIM: treat y as numeric {0,1} and look for boxes with y > 0.5
-    feature_cols = [c for c in df.columns if c not in ("Scen_fut", "gas_cap_2050", "no_gas_2050")]
-    Xnum = df[feature_cols].apply(pd.to_numeric, errors="coerce")
+    # # Run CART
+    # run_cart(df, feature_cols)
 
-    print("Running PRIM to find conditions (boxes) associated with NO gas in 2050…")
-    p = prim.Prim(Xnum, df["no_gas_2050"], threshold=0.5, threshold_type=">")
-    box = p.find_box()
+    # Run EMA-PRIM
+    run_prim_ema(df, feature_cols)
 
-    # Plots
-    try:
-        fig = box.show_tradeoff()
-        if fig is not None and plt is not None:
-            fig.savefig(os.path.join(OUTDIR, "prim_tradeoff_no_gas_2050.png"), bbox_inches="tight", dpi=200)
-    except Exception:
-        warnings.warn("Could not create tradeoff plot; continuing.")
+    print("Done.")
 
-    try:
-        g = box.show_pairs_scatter()
-        if g is not None:
-            g.fig.savefig(os.path.join(OUTDIR, "prim_pairs_no_gas_2050.png"), bbox_inches="tight", dpi=200)
-    except Exception:
-        warnings.warn("Could not create pairs scatter; continuing.")
 
-    # Export box limits/statistics if available
-    limits_path = os.path.join(OUTDIR, "prim_box_limits_no_gas_2050.csv")
-    stats_path = os.path.join(OUTDIR, "prim_box_stats_no_gas_2050.csv")
-    try:
-        data = box.inspect(style="data")
-        if isinstance(data, list) and data:
-            stats, box_lims = data[-1]
-            pd.DataFrame([stats]).to_csv(stats_path, index=False)
-            box_lims.to_csv(limits_path, index=False)
-    except Exception:
-        pass
 
-    print("Artifacts written to:")
-    print(f"- {dataset_path}")
-    print(f"- {os.path.join(OUTDIR, 'prim_tradeoff_no_gas_2050.png')} (if plotting succeeded)")
-    print(f"- {os.path.join(OUTDIR, 'prim_pairs_no_gas_2050.png')} (if plotting succeeded)")
-    print(f"- {limits_path} (if extraction succeeded)")
-    print(f"- {stats_path} (if extraction succeeded)")

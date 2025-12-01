@@ -49,6 +49,71 @@ def read_table(path: str) -> pd.DataFrame:
     else:
         raise SystemExit(f"Unsupported file type for: {path}")
 
+# ---- Plotting helpers ------------------------------------------------------
+        
+# def plot_cart_sankey(clf, feature_names, class_names, outpath=None):
+#     """
+#     Build a Sankey diagram from a fitted sklearn DecisionTreeClassifier.
+
+#     - flow width = number of samples in each child node
+#     - node labels show split condition (internal) or class probabilities (leaves)
+#     """
+#     from sklearn.tree import _tree
+#     import plotly.graph_objects as go
+
+#     tree = clf.tree_
+#     n_nodes = tree.node_count
+
+#     # Build node labels
+#     node_labels = []
+#     for i in range(n_nodes):
+#         is_leaf = tree.children_left[i] == _tree.TREE_LEAF
+#         if not is_leaf:
+#             fname = feature_names[tree.feature[i]]
+#             thr = tree.threshold[i]
+#             node_labels.append(f"{i}: {fname} <= {thr:.3g}")
+#         else:
+#             counts = tree.value[i][0]
+#             total = counts.sum()
+#             if total > 0:
+#                 probs = counts / total
+#                 cls_str = ", ".join(f"{c}={p:.2f}" for c, p in zip(class_names, probs))
+#             else:
+#                 cls_str = "empty"
+#             node_labels.append(f"{i}: leaf\n{cls_str}")
+
+#     # Build links (parent -> left/right child)
+#     sources, targets, values = [], [], []
+#     for i in range(n_nodes):
+#         for child in (tree.children_left[i], tree.children_right[i]):
+#             if child != _tree.TREE_LEAF:
+#                 sources.append(i)
+#                 targets.append(child)
+#                 values.append(float(tree.n_node_samples[child]))
+
+#     fig = go.Figure(
+#         data=[
+#             go.Sankey(
+#                 node=dict(
+#                     label=node_labels,
+#                     pad=20,
+#                     thickness=20,
+#                 ),
+#                 link=dict(
+#                     source=sources,
+#                     target=targets,
+#                     value=values,
+#                 ),
+#             )
+#         ]
+#     )
+
+#     if outpath is not None:
+#         fig.write_html(outpath)
+#     else:
+#         fig.show()
+
+
 
 # ---- Feature & outcome builders (shared across all algorithms) -------------
 
@@ -270,7 +335,7 @@ def run_cart(df: pd.DataFrame, feature_cols: List[str], outdir: str) -> None:
         .sort_values("importance", ascending=False)
     )
     fi.to_csv(os.path.join(outdir, "cart_feature_importances.csv"), index=False)
-
+   
     # Tree plot & rules
     if plt is not None:
         plt.figure(figsize=(12, 8))
@@ -284,11 +349,16 @@ def run_cart(df: pd.DataFrame, feature_cols: List[str], outdir: str) -> None:
         plt.tight_layout()
         tree_png = os.path.join(outdir, "cart_tree.png")
         plt.savefig(tree_png, dpi=200)
-
+    
     rules = export_text(best, feature_names=feature_cols)
     with open(os.path.join(outdir, "cart_tree_rules.txt"), "w") as f:
         f.write(rules)
-
+    
+    # # NEW: Sankey flow visualisation (requires: pip install plotly)
+    # class_names = [str(c) for c in best.classes_]
+    # sankey_html = os.path.join(outdir, "cart_sankey.html")
+    # plot_cart_sankey(best, feature_cols, class_names, sankey_html)
+    
     print("CART artifacts written to:", outdir)
 
 

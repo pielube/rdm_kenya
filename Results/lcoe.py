@@ -121,6 +121,11 @@ def compute_lcoe_from_csv(input_csv: str,
     to the CSV files and return a DataFrame:
 
         ['Future.ID', 'YEAR', 'LCOE', 'Strategy']
+
+    Numerator components per (Future.ID, YEAR):
+      - Rolling annualised investment from new builds (AIC)
+      - Annual fixed + variable operating cost
+      - Annualised investment cost of residual capacity (ResidualAIC)
     """
 
     # --- Read CSVs ---
@@ -161,9 +166,11 @@ def compute_lcoe_from_csv(input_csv: str,
         if "Strategy" in df_out.columns:
             strategy_val = df_out["Strategy"].dropna().astype(str).iloc[0]
 
-        # Life & discount maps
+        # Life & discount maps from input
         life_by_tech = read_operational_life(df_in)
         rate_by_ty = read_discount_rate_by_tech_year(df_in)
+
+        # --- AIC from new builds (rolling) ---
 
         df = df_out.copy()
         if "YEAR" not in df.columns or "TECHNOLOGY" not in df.columns:
@@ -192,13 +199,13 @@ def compute_lcoe_from_csv(input_csv: str,
             mapped = s_ty.reindex(mi)
             rate_map.loc[mask_y] = pd.to_numeric(mapped.values, errors="coerce")
 
-        # Fallback scalar
+        # Fallback scalar for missing rates
         rate_map = rate_map.fillna(float(fallback_discount_rate))
 
         # Capital investment
         cap = pd.to_numeric(df.get("CapitalInvestment", 0.0), errors="coerce").fillna(0.0)
 
-        # Incremental annualised cost
+        # Incremental annualised cost per row (build-year AIC)
         crf_vals = [
             capital_recovery_factor_original(r, n)
             for r, n in zip(pd.to_numeric(rate_map, errors="coerce"),
@@ -225,7 +232,7 @@ def compute_lcoe_from_csv(input_csv: str,
             else:
                 window = int(max(1, math.ceil(float(life_vals.max()))))
 
-            per_year = g.groupby("YEAR", sort=True)["inc"].max()
+            per_year = g.groupby("YEAR", sort=True)["inc"].max()  # match original: max per year
             roll = per_year.rolling(window=window, min_periods=1).sum()
 
             rec = pd.DataFrame({
@@ -241,7 +248,7 @@ def compute_lcoe_from_csv(input_csv: str,
         else:
             aic_by_year = pd.Series(dtype="float64")
 
-        # Variable + fixed O&M
+        # --- Variable + fixed O&M by year for this future ---
         var_col = "AnnualVariableOperatingCost"
         fix_col = "AnnualFixedOperatingCost"
         for col in [var_col, fix_col]:
@@ -251,8 +258,125 @@ def compute_lcoe_from_csv(input_csv: str,
 
         om_by_year = df.groupby("YEAR", sort=True)[[var_col, fix_col]].sum().sum(axis=1)
 
-        # Total cost
+        # --- Residual capacity component (AnnualizedCapitalInvestmentResidual analogue) ---
+        resid_by_year = pd.Series(dtype="float64")
+        if "ResidualCapacity" in df_in.columns:
+            res = df_in[["TECHNOLOGY", "YEAR", "ResidualCapacity"]].copy()
+            res["TECHNOLOGY"] = res["TECHNOLOGY"].astype(str).str.strip()
+            res["YEAR"] = pd.to_numeric(res["YEAR"], errors="coerce")
+            res["ResidualCapacity"] = pd.to_numeric(res["ResidualCapacity"], errors="coerce")
+            res = res.dropna(subset=["YEAR", "ResidualCapacity"])
+            res = res[res["YEAR"] >= 1900]
+            if not res.empty:
+                res["YEAR"] = res["YEAR"].astype(int)
+
+                # Base year (aligned with first CapitalCost year if possible)
+                base_year = None
+                if "CapitalCost" in df_in.columns:
+                    cc_df = df_in[["TECHNOLOGY", "YEAR", "CapitalCost"]].copy()
+                    cc_df["TECHNOLOGY"] = cc_df["TECHNOLOGY"].astype(str).str.strip()
+                    cc_df["YEAR"] = pd.to_numeric(cc_df["YEAR"], errors="coerce")
+                    cc_df["CapitalCost"] = pd.to_numeric(cc_df["CapitalCost"], errors="coerce")
+                    cc_df = cc_df.dropna(subset=["YEAR", "CapitalCost"])
+                    years_ok = cc_df["YEAR"][cc_df["YEAR"] >= 1900]
+                    if not years_ok.empty:
+                        base_year = int(years_ok.min())
+                if base_year is None:
+                    years_ok = res["YEAR"]
+                    if not years_ok.empty:
+                        base_year = int(years_ok.min())
+
+                # Base discount rate scalar: from rate_by_ty at base_year if available, else fallback
+                if rate_by_ty is not None and base_year is not None and not rate_by_ty.empty:
+                    ty_year = rate_by_ty[rate_by_ty["YEAR"].astype(int) == base_year]
+                    if not ty_year.empty:
+                        r_base_scalar = float(pd.to_numeric(ty_year["__rate_by_ty"], errors="coerce").max())
+                    else:
+                        r_base_scalar = float(fallback_discount_rate)
+                else:
+                    r_base_scalar = float(fallback_discount_rate)
+
+                # Per-tech base-year rate map (if available)
+                r_base_map = None
+                if rate_by_ty is not None and base_year is not None and not rate_by_ty.empty:
+                    ty_year = rate_by_ty[rate_by_ty["YEAR"].astype(int) == base_year]
+                    if not ty_year.empty:
+                        r_base_map = ty_year.set_index("TECHNOLOGY")["__rate_by_ty"]
+                        r_base_map.index = r_base_map.index.astype(str).str.strip()
+
+                # Life per tech (from life_by_tech)
+                life_s_local = None
+                if life_by_tech is not None and not life_by_tech.empty:
+                    life_s_local = pd.to_numeric(life_by_tech, errors="coerce")
+                    life_s_local.index = life_s_local.index.astype(str).str.strip()
+
+                # CRF per tech at base rate
+                crf_base_s = pd.Series(dtype="float64")
+                if life_s_local is not None:
+                    if r_base_map is not None and not r_base_map.empty:
+                        rate_vec = life_s_local.index.to_series().map(
+                            lambda t: r_base_map.get(t, r_base_scalar)
+                        )
+                    else:
+                        rate_vec = pd.Series(r_base_scalar, index=life_s_local.index)
+
+                    crf_base_s = pd.Series(
+                        [
+                            capital_recovery_factor_original(r, n)
+                            for r, n in zip(pd.to_numeric(rate_vec, errors="coerce"),
+                                            pd.to_numeric(life_s_local, errors="coerce"))
+                        ],
+                        index=life_s_local.index,
+                    )
+
+                # Aggregate residual capacity per (TECHNOLOGY, YEAR)
+                res_agg = res.groupby(["TECHNOLOGY", "YEAR"], sort=False)["ResidualCapacity"].max().reset_index()
+
+                # Map base CRF
+                if not crf_base_s.empty:
+                    res_agg["__crf_base"] = pd.to_numeric(
+                        res_agg["TECHNOLOGY"].map(crf_base_s),
+                        errors="coerce",
+                    ).fillna(0.0)
+                else:
+                    # No life information: no residual AIC
+                    res_agg["__crf_base"] = 0.0
+
+                # CapitalCost[first model year] per tech
+                capcost_map = pd.Series(dtype="float64")
+                if "CapitalCost" in df_in.columns:
+                    cap_df = df_in[["TECHNOLOGY", "YEAR", "CapitalCost"]].copy()
+                    cap_df["TECHNOLOGY"] = cap_df["TECHNOLOGY"].astype(str).str.strip()
+                    cap_df["YEAR"] = pd.to_numeric(cap_df["YEAR"], errors="coerce")
+                    cap_df["CapitalCost"] = pd.to_numeric(cap_df["CapitalCost"], errors="coerce")
+                    cap_df = cap_df.dropna(subset=["CapitalCost"])
+                    years_ok = cap_df["YEAR"].dropna()
+                    years_ok = years_ok[years_ok >= 1900]
+                    if not years_ok.empty:
+                        first_year = int(years_ok.min())
+                        first_cap = cap_df[cap_df["YEAR"] == first_year]
+                        capcost_map = first_cap.groupby("TECHNOLOGY", sort=False)["CapitalCost"].max()
+                    else:
+                        capcost_map = cap_df.groupby("TECHNOLOGY", sort=False)["CapitalCost"].max()
+
+                res_agg["__cap_base"] = pd.to_numeric(
+                    res_agg["TECHNOLOGY"].map(capcost_map),
+                    errors="coerce",
+                ).fillna(0.0)
+
+                # Residual investment and annualised residual AIC
+                resid_base_invest = (
+                    pd.to_numeric(res_agg["ResidualCapacity"], errors="coerce").fillna(0.0)
+                    * res_agg["__cap_base"]
+                )
+                res_agg["__resid_aic"] = resid_base_invest * res_agg["__crf_base"]
+
+                # Sum residual AIC by year
+                resid_by_year = res_agg.groupby("YEAR", sort=True)["__resid_aic"].sum()
+
+        # --- Total cost per year for this Future.ID ---
         cost_by_year = aic_by_year.add(om_by_year, fill_value=0.0)
+        cost_by_year = cost_by_year.add(resid_by_year, fill_value=0.0)
 
         # Demand for this Future.ID
         dem_f = demand_by_fy.xs(fid_int, level=0)
@@ -279,36 +403,51 @@ def compute_lcoe_from_csv(input_csv: str,
     lcoe_df = pd.DataFrame(lcoe_records)
     return lcoe_df.sort_values(["Future.ID", "YEAR"]).reset_index(drop=True)
 
+
 def plot_line_lcoe_full_horizon(lcoe_df: pd.DataFrame,
                                 save: bool = False,
                                 filename: str = "line_lcoe_full.png") -> None:
     """
     Plot system-wide LCOE by Future.ID over the full time horizon (2019–2050),
-    using the same style as plot_line_lcoe in plots.py:
-      - Scenario 0 in blue, others in light grey
-      - LCOE converted to USD/kWh (×0.0036)
-      - x-ticks every 5 years
+    in the same style as plot_line_lcoe, ensuring Scenario 0 is drawn LAST
+    so that it is on top of all other lines.
     """
-    df_lcoe = lcoe_df.copy()
 
-    # Ensure numeric and drop zeros/NaNs
+    df_lcoe = lcoe_df.copy()
     df_lcoe["LCOE"] = pd.to_numeric(df_lcoe["LCOE"], errors="coerce")
     df_lcoe = df_lcoe.dropna(subset=["LCOE"])
     df_lcoe = df_lcoe.loc[df_lcoe["LCOE"] != 0]
 
-    # Convert to USD/kWh as in plots.py
+    # Convert to USD/kWh (same as plots.py)
     df_lcoe["LCOE_kWh"] = df_lcoe["LCOE"] * 0.0036
 
     plt.figure(figsize=(10, 6))
-    for fid, grp in df_lcoe.groupby("Future.ID"):
-        grp = grp.sort_values("YEAR")
-        if fid == 0:
-            plt.plot(grp["YEAR"], grp["LCOE_kWh"],
-                     color="blue", linewidth=2, label="Scenario 0")
-        else:
-            plt.plot(grp["YEAR"], grp["LCOE_kWh"],
-                     color="lightgrey", linewidth=1, alpha=0.7)
 
+    # --- 1. Plot all scenarios EXCEPT 0 first (background) ---
+    for fid, grp in df_lcoe.groupby("Future.ID"):
+        if fid == 0:
+            continue
+        grp = grp.sort_values("YEAR")
+        plt.plot(
+            grp["YEAR"],
+            grp["LCOE_kWh"],
+            color="lightgrey",
+            linewidth=1,
+            alpha=0.7
+        )
+
+    # --- 2. Plot Scenario 0 LAST (foreground) ---
+    if 0 in df_lcoe["Future.ID"].unique():
+        grp0 = df_lcoe[df_lcoe["Future.ID"] == 0].sort_values("YEAR")
+        plt.plot(
+            grp0["YEAR"],
+            grp0["LCOE_kWh"],
+            color="blue",
+            linewidth=2.5,
+            label="Scenario 0"
+        )
+
+    # --- Styling ---
     ax = plt.gca()
     ax.set_xlim(2019, 2050)
     ax.xaxis.set_major_locator(mticker.MultipleLocator(5))

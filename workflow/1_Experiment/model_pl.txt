@@ -72,6 +72,7 @@ param EmissionToActivityChangeRatio{r in REGION, t in TECHNOLOGY, e in EMISSION,
 param UDCMultiplierTotalCapacity{r in REGION, t in TECHNOLOGY, u in UDC, y in YEAR};
 param UDCMultiplierNewCapacity{r in REGION, t in TECHNOLOGY, u in UDC, y in YEAR};
 param UDCMultiplierActivity{r in REGION, t in TECHNOLOGY, u in UDC, y in YEAR};
+param UDCMultiplierDemand{r in REGION, f in COMMODITY, u in UDC, y in YEAR};
 param UDCConstant{r in REGION, u in UDC, y in YEAR};
 param UDCTag{r in REGION, u in UDC};
 
@@ -323,11 +324,14 @@ s.t. SI9_SalvageValueStorageDiscountedToStartYear{r in REGION, s in STORAGE, y i
 s.t. UDC1_UserDefinedConstraintInequality{r in REGION, u in UDC, y in YEAR: UDCTag[r,u] = 0}: 
 sum{t in TECHNOLOGY}UDCMultiplierTotalCapacity[r,t,u,y]*TotalCapacityAnnual[r,t,y] + 
 sum{t in TECHNOLOGY}UDCMultiplierNewCapacity[r,t,u,y]*NewCapacity[r,t,y] +
-sum{t in TECHNOLOGY}UDCMultiplierActivity[r,t,u,y]*TotalTechnologyAnnualActivity[r,t,y] <= UDCConstant[r,u,y];
+sum{t in TECHNOLOGY}UDCMultiplierActivity[r,t,u,y]*TotalTechnologyAnnualActivity[r,t,y] +
+sum{l in TIMESLICE, f in COMMODITY}UDCMultiplierDemand[r,f,u,y]*Demand[r,l,f,y] <= UDCConstant[r,u,y];
 s.t. UDC2_UserDefinedConstraintEquality{r in REGION, u in UDC, y in YEAR: UDCTag[r,u] = 1}: 
 sum{t in TECHNOLOGY}UDCMultiplierTotalCapacity[r,t,u,y]*TotalCapacityAnnual[r,t,y] + 
 sum{t in TECHNOLOGY}UDCMultiplierNewCapacity[r,t,u,y]*NewCapacity[r,t,y] +
-sum{t in TECHNOLOGY}UDCMultiplierActivity[r,t,u,y]*TotalTechnologyAnnualActivity[r,t,y] = UDCConstant[r,u,y];
+sum{t in TECHNOLOGY}UDCMultiplierActivity[r,t,u,y]*TotalTechnologyAnnualActivity[r,t,y] +
+sum{l in TIMESLICE, f in COMMODITY}UDCMultiplierDemand[r,f,u,y]*Demand[r,l,f,y] = UDCConstant[r,u,y];
+
 #
 #####################
 #

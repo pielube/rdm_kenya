@@ -2302,6 +2302,88 @@ def generate_df_per_param(scenario_code_name, data_per_param, num_time_slices_SD
                     df = df.rename(columns={'Value': param})
                     list_dataframes.append(df)
                     dict_dataframes[f'{param}'] = df
+                    
+            ##################################
+            # Bonus ##########################
+            #################################
+            
+            if 'UDCMultiplierDemand' in param:
+                # Parse blocks of the form:
+                #   [REGION, COMMODITY] ...
+                #   <years> :=
+                #   <UDC> <v1> <v2> ...
+                # ensuring COMMODITY goes into the COMMODITY column (not TECHNOLOGY),
+                # and preserving the (REGION, COMMODITY) pairing.
+
+                a = 0
+                current_key = None  # (region, commodity)
+                anios = []
+                udc_separado_dict = {}  # {(region, commodity): {udc: [values...] } }
+
+                for j in range(1, len(matriz)):
+                    line = matriz[j]
+
+                    # Header line with indices
+                    if '[' in line and a == 0:
+                        a = 1
+                        region = line.split(',')[0].replace(',', '').replace('[', '').strip()
+                        fuel = line.split(',')[1].replace(',', '').replace(']', '').strip()
+                        current_key = (region, fuel)
+                        if current_key not in udc_separado_dict:
+                            udc_separado_dict[current_key] = {}
+
+                    # Years line
+                    elif a == 1:
+                        anios = line.split(' ')
+                        if anios and anios[-1] == ':=\n':
+                            anios = anios[:-1]
+                        a = 2
+
+                    # Data lines (until next header)
+                    elif a == 2 and '[' not in line:
+                        parts = line.split(' ')
+                        udc_name = str(parts[0]).strip()
+                        aux = parts[1:]
+                        if aux:
+                            aux[-1] = aux[-1].replace('\n', '')
+                        if current_key is not None:
+                            udc_separado_dict[current_key][udc_name] = aux
+
+                    # Next header starts a new block
+                    elif a == 2 and '[' in line:
+                        region = line.split(',')[0].replace(',', '').replace('[', '').strip()
+                        fuel = line.split(',')[1].replace(',', '').replace(']', '').strip()
+                        current_key = (region, fuel)
+                        if current_key not in udc_separado_dict:
+                            udc_separado_dict[current_key] = {}
+                        a = 1
+
+                matriz_escribir = []
+
+                # Write rows: TECHNOLOGY blank, COMMODITY filled with fuel
+                for (region, fuel), udcs_dict in udc_separado_dict.items():
+                    for udc_name, serie_datos_temp in udcs_dict.items():
+                        for l in range(len(anios)):
+                            matriz_escribir.append([
+                                'UDCMultiplierDemand',
+                                scenario_code_name,
+                                region,
+                                '',            # TECHNOLOGY (blank)
+                                fuel,          # COMMODITY
+                                '',            # EMISSION
+                                '',            # MODE_OF_OPERATION
+                                anios[l],       # YEAR
+                                '', '', '', '', '', '', '',  # TIMESLICE..STORAGEINTRAYEAR
+                                udc_name,       # UDC
+                                serie_datos_temp[l]  # Value
+                            ])
+
+                # Store data
+                if matriz_escribir:
+                    df = pd.DataFrame(matriz_escribir, columns=encabezado_param)
+                    df = df.rename(columns={'Value': param})
+                    list_dataframes.append(df)
+                    dict_dataframes[f'{param}'] = df
 
 
             ##################################

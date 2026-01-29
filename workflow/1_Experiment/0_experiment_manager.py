@@ -9,6 +9,7 @@ import multiprocessing as mp
 import pandas as pd
 import numpy as np
 import os, os.path, sys, errno
+from pathlib import Path
 import math, time
 from copy import deepcopy
 import random
@@ -703,15 +704,34 @@ if __name__ == '__main__':
     Interface_RDM = main_path[3]
     shape_file = main_path[4]
     # osemosys_model = 'model.v.5.0.txt'
-    # Interface_RDM = r'C:\Users\ClimateLeadGroup\Desktop\CLG_repositories\Kenya_RDM\src\Interface_RDM.xlsx'
+    # Interface_RDM = r'C:\Users\ClimateLeadGroup\Desktop\CLG_repositories\Kenya_RDM\src\interface_rdm_inputs'
     # solver = 'cplex'
     # shape_file = r'C:\Users\ClimateLeadGroup\Desktop\CLG_repositories\Kenya_RDM\src\workflow\2_Miscellaneous\shape_of_demand.csv'
 
-    book=pd.ExcelFile(Interface_RDM)
+    def load_interface_tables(interface_path):
+        interface_path = Path(interface_path)
+        if interface_path.is_dir():
+            return {
+                'Setup': pd.read_csv(interface_path / 'Setup.csv'),
+                'To_Print': pd.read_csv(interface_path / 'To_Print.csv'),
+                'Params_Sets_Vari': pd.read_csv(interface_path / 'Params_Sets_Vari.csv'),
+                'Uncertainty_Table': pd.read_csv(interface_path / 'Uncertainty_Table.csv'),
+            }
+        if interface_path.suffix.lower() == '.xlsx':
+            book = pd.ExcelFile(interface_path)
+            return {
+                'Setup': book.parse('Setup', 0),
+                'To_Print': book.parse('To_Print', 0),
+                'Params_Sets_Vari': book.parse('Params_Sets_Vari'),
+                'Uncertainty_Table': book.parse('Uncertainty_Table'),
+            }
+        raise ValueError(f'Interface_RDM must be a directory of CSVs or an .xlsx file: {interface_path}')
+
+    interface_tables = load_interface_tables(Interface_RDM)
     '''
     Let us define parameters to print 
     '''
-    parameters_to_print = book.parse( 'To_Print' , 0)
+    parameters_to_print = interface_tables['To_Print']
     
     '''
     Let us define some control inputs internally:
@@ -815,10 +835,10 @@ if __name__ == '__main__':
     Part 4: print the new .txt files
     '''
     
-    setup_table = book.parse( 'Setup' , 0)
+    setup_table = interface_tables['Setup']
     scenarios_to_reproduce = str( setup_table.loc[ 0 ,'Scenario_to_Reproduce'] )
     experiment_ID = str( setup_table.loc[ 0 ,'Experiment_ID'] )
-    df_Params_Sets_Vari = book.parse( 'Params_Sets_Vari' )
+    df_Params_Sets_Vari = interface_tables['Params_Sets_Vari']
     # Step 1: Remove the 'parameter' column and store its values to use as index
     new_index = df_Params_Sets_Vari['parameter'].reset_index(drop=True)
     df_Params_Sets_Vari = df_Params_Sets_Vari.drop(columns='parameter')
@@ -855,7 +875,7 @@ if __name__ == '__main__':
     ################################# PART 1 #################################
     '''''
     print('1: I start by reading the Uncertainty Table and systematically perturbing the paramaters.')
-    uncertainty_table = book.parse( 'Uncertainty_Table' )
+    uncertainty_table = interface_tables['Uncertainty_Table']
     # use .loc to access [row, column name]
     # experiment_variables = list( uncertainty_table.columns )
     #

@@ -1,5 +1,6 @@
 ' Libraries'
 import os, shutil, sys, time
+from pathlib import Path
 import pandas as pd
 
 'Auxiliar code'
@@ -12,8 +13,8 @@ start = time.time()
 list_scenarios=os.listdir('./workflow/0_Scenarios')
 
 'Read timeslices numbers'
-book=pd.ExcelFile('Interface_RDM.xlsx')
-setup_table = book.parse( 'Setup' , 0)
+interface_dir = Path('interface_rdm_inputs')
+setup_table = pd.read_csv(interface_dir / 'Setup.csv')
 num_time_slices_SDP = int( setup_table.loc[ 0 ,'Timeslices_model'] )
 
 'If you want to run base future the next variable as "Yes", if do not put "No"'
@@ -29,7 +30,7 @@ solver = str( setup_table.loc[ 0 ,'Solver'] )
 osemosys_model = str( setup_table.loc[ 0 ,'OSeMOSYS_Model_Name'] )
 
 'Parameters to print'
-parameters_to_print = book.parse( 'To_Print' , 0)
+parameters_to_print = pd.read_csv(interface_dir / 'To_Print.csv')
 
 if run_base_future == 'Yes':
     # ' Step 1: Delete ResultsPath param'
@@ -204,7 +205,7 @@ if run_base_future == 'Yes':
 if run_RDM == 'Yes':
     'Step 10: Execute RDM experiment'
     print('Start RDM experiment\n')
-    AUX.run_scripts('./workflow/1_Experiment/0_experiment_manager.py', solver, osemosys_model, os.path.abspath('Interface_RDM.xlsx'), shape_file=os.path.abspath('./workflow/2_Miscellaneous/shape_of_demand.csv'))
+    AUX.run_scripts('./workflow/1_Experiment/0_experiment_manager.py', solver, osemosys_model, os.path.abspath('interface_rdm_inputs'), shape_file=os.path.abspath('./workflow/2_Miscellaneous/shape_of_demand.csv'))
     
     print('Step 10 finished\n')
     
@@ -231,4 +232,3 @@ print('#####################################')
 end = time.time()
 time_elapsed = -start + end
 print('   The total time of the workflow has been: ' + str( time_elapsed ) + ' seconds' )
-

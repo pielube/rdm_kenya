@@ -1,0 +1,2 @@
+Number_of_Runs,Scenario_to_Reproduce,Experiment_ID,Parallel_Use,Timeslices_model,Run_Base_Future,Run_RDM,Solver,OSeMOSYS_Model_Name
+100,Experiment,1,5,48,Yes,Yes,cplex,model_pl.txt

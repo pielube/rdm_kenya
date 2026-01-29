@@ -1,5 +1,41 @@
+# Large files
 Results/OSEMOSYS_Energy_Input.csv
 Results/OSEMOSYS_Energy_Output.csv
 workflow/1_Experiment/Experimental_Platform/Futures/
 workflow/1_Experiment/Results/OSEMOSYS_Energy_Input.csv
 workflow/1_Experiment/Results/OSEMOSYS_Energy_Output.csv
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+.env/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Test / coverage reports
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Editor / IDE metadata
+.vscode/
+.idea/
+
+# OS-specific files
+.DS_Store
+Thumbs.db

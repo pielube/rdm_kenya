@@ -14,24 +14,20 @@ WORKFLOW_DIR = Path("workflow")
 SCENARIOS_DIR = WORKFLOW_DIR / "0_Scenarios"
 EXECUTABLES_DIR = WORKFLOW_DIR / "1_Experiment" / "Executables"
 FUTURES_DIR = WORKFLOW_DIR / "1_Experiment" / "Experimental_Platform" / "Futures"
-MODEL_STRUCTURE_PATH = (
-    WORKFLOW_DIR / "1_Experiment" / "0_From_Confection" / "B1_Model_Structure.xlsx"
-)
+MODEL_STRUCTURE_PATH = (WORKFLOW_DIR / "1_Experiment" / "0_From_Confection" / "B1_Model_Structure.xlsx")
 OSEMOSYS_STRUCTURE_PATH = WORKFLOW_DIR / "2_Miscellaneous" / "OSeMOSYS_Structure.xlsx"
 SHAPE_FILE_PATH = WORKFLOW_DIR / "2_Miscellaneous" / "shape_of_demand.csv"
 
 scenario_files = os.listdir(SCENARIOS_DIR)
 
 interface_dir = Path("interface_rdm_inputs")
+
 setup_table = pd.read_csv(interface_dir / "Setup.csv")
+
 num_time_slices_sdp = int(setup_table.loc[0, "Timeslices_model"])
-
 run_base_future = str(setup_table.loc[0, "Run_Base_Future"])
-
 run_rdm = str(setup_table.loc[0, "Run_RDM"])
-
 solver = str(setup_table.loc[0, "Solver"])
-
 osemosys_model = str(setup_table.loc[0, "OSeMOSYS_Model_Name"])
 
 parameters_to_print = pd.read_csv(interface_dir / "To_Print.csv")
@@ -198,7 +194,7 @@ if run_base_future == "Yes":
         print("Step 9.Output finished")
     print("Step 9 finished")
     end_1 = time.time()
-    time_elapsed_1 = end_1 - start1
+    time_elapsed_1 = int(round(end_1 - start1))
     print(
         "   The total time producing outputs and storing data of base futures have been: "
         + str(time_elapsed_1)
@@ -225,7 +221,7 @@ if run_rdm == "Yes":
 
     print("Step 11 finished\n")
     end_3 = time.time()
-    time_elapsed_3 = end_3 - start3
+    time_elapsed_3 = int(round(end_3 - start3))
     print(
         "   The total time producing storing data of the experiment has been: "
         + str(time_elapsed_3)
@@ -242,5 +238,5 @@ print("Processing completed successfully.")
 print("#####################################")
 
 end = time.time()
-time_elapsed = end - start
+time_elapsed = int(round(end - start))
 print("   The total time of the workflow has been: " + str(time_elapsed) + " seconds")

@@ -194,10 +194,10 @@ if run_base_future == "Yes":
         print("Step 9.Output finished")
     print("Step 9 finished")
     end_1 = time.time()
-    time_elapsed_1 = int(round(end_1 - start1))
+    time_elapsed_1 = round(end_1 - start1)
     print(
         "   The total time producing outputs and storing data of base futures have been: "
-        + str(time_elapsed_1)
+        + str(time_elapsed_1,2)
         + " seconds"
     )
 
@@ -221,7 +221,7 @@ if run_rdm == "Yes":
 
     print("Step 11 finished\n")
     end_3 = time.time()
-    time_elapsed_3 = int(round(end_3 - start3))
+    time_elapsed_3 = round(end_3 - start3,2)
     print(
         "   The total time producing storing data of the experiment has been: "
         + str(time_elapsed_3)
@@ -238,5 +238,5 @@ print("Processing completed successfully.")
 print("#####################################")
 
 end = time.time()
-time_elapsed = int(round(end - start))
+time_elapsed = round(end - start,2)
 print("   The total time of the workflow has been: " + str(time_elapsed) + " seconds")

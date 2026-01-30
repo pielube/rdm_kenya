@@ -13,12 +13,14 @@ from rdm_kenya import workflow_utils as AUX
 
 
 WORKFLOW_DIR = Path("workflow")
-SCENARIOS_DIR = WORKFLOW_DIR / "0_Scenarios"
-EXECUTABLES_DIR = WORKFLOW_DIR / "1_Experiment" / "Executables"
-FUTURES_DIR = WORKFLOW_DIR / "1_Experiment" / "Experimental_Platform" / "Futures"
-MODEL_STRUCTURE_PATH = WORKFLOW_DIR / "1_Experiment" / "0_From_Confection" / "B1_Model_Structure.xlsx"
-OSEMOSYS_STRUCTURE_PATH = WORKFLOW_DIR / "2_Miscellaneous" / "OSeMOSYS_Structure.xlsx"
-SHAPE_FILE_PATH = WORKFLOW_DIR / "2_Miscellaneous" / "shape_of_demand.csv"
+SCENARIOS_DIR = WORKFLOW_DIR / "scenarios"
+EXECUTABLES_DIR = WORKFLOW_DIR / "experiments" / "Executables"
+FUTURES_DIR = WORKFLOW_DIR / "experiments" / "Experimental_Platform" / "Futures"
+MODEL_STRUCTURE_PATH = (
+    WORKFLOW_DIR / "experiments" / "from_confection" / "B1_Model_Structure.xlsx"
+)
+OSEMOSYS_STRUCTURE_PATH = WORKFLOW_DIR / "miscellaneous" / "OSeMOSYS_Structure.xlsx"
+SHAPE_FILE_PATH = WORKFLOW_DIR / "miscellaneous" / "shape_of_demand.csv"
 
 
 def run_rdm_workflow() -> None:
@@ -52,8 +54,8 @@ def run_rdm_workflow() -> None:
 
         print("Step 1 finished")
 
-        # Step 2: Clean folders in ./workflow/1_Experiment/0_From_Confection/
-        target_dir = WORKFLOW_DIR / "1_Experiment" / "0_From_Confection"
+        # Step 2: Clean folders in ./workflow/experiments/from_confection/
+        target_dir = WORKFLOW_DIR / "experiments" / "from_confection"
         for files in os.listdir(target_dir):
             path = target_dir / files
             try:
@@ -75,7 +77,7 @@ def run_rdm_workflow() -> None:
 
         print("Step 3 finished")
 
-        # Step 4: Clean ./workflow/1_Experiment/Executables folder except .py file
+        # Step 4: Clean ./workflow/experiments/Executables folder except .py file
         # Clean folders
         target_dir = EXECUTABLES_DIR
         for files in os.listdir(target_dir):
@@ -88,7 +90,7 @@ def run_rdm_workflow() -> None:
 
         print("Step 4 finished")
 
-        # Step 5: Clean ./workflow/1_Experiment/Experimental_Platform/Futures folder except .py file
+        # Step 5: Clean ./workflow/experiments/Experimental_Platform/Futures folder except .py file
         # Clean folders
         target_dir = FUTURES_DIR
         for files in os.listdir(target_dir):
@@ -117,7 +119,7 @@ def run_rdm_workflow() -> None:
 
         print("Step 6 finished")
 
-        # Step 7: Paste scenarios future 0 TXT files in ./workflow/1_Experiment/Executables/
+        # Step 7: Paste scenarios future 0 TXT files in ./workflow/experiments/Executables/
         for scenario in scenario_files:
             scenario_stem = scenario.replace(".txt", "")
             source_folder = str(SCENARIOS_DIR) + "/"
@@ -148,7 +150,7 @@ def run_rdm_workflow() -> None:
             AUX.create_input_dataset_future_0(
                 list_dataframes,
                 scenario_stem,
-                "./workflow/1_Experiment/Executables/" + scenario.replace(".txt", "_0/"),
+                "./workflow/experiments/Executables/" + scenario.replace(".txt", "_0/"),
             )
 
         print("Step 8 finished")
@@ -161,12 +163,14 @@ def run_rdm_workflow() -> None:
             # Run OSeMOSYS for each scenario
             AUX.run_osemosys(
                 solver,
-                "./workflow/1_Experiment/Executables/" + scenario.replace(".txt", "_0/"),
-                "./workflow/1_Experiment/Executables/"
+                "./workflow/experiments/Executables/" + scenario.replace(".txt", "_0/"),
+                "./workflow/experiments/Executables/"
                 + scenario.replace(".txt", "_0/")
                 + scenario.replace(".txt", "_0.txt"),
                 "./workflow/" + osemosys_model,
-                "./workflow/1_Experiment/Executables/" + scenario.replace(".txt", "_0/") + scenario_stem,
+                "./workflow/experiments/Executables/"
+                + scenario.replace(".txt", "_0/")
+                + scenario_stem,
             )
 
             print("Step 9.Input finished")
@@ -174,7 +178,7 @@ def run_rdm_workflow() -> None:
             print("Step 9.Output generated. Star long function")
             if solver in ("cbc", "cplex"):
                 AUX.data_processor_new(
-                    "./workflow/1_Experiment/Executables/"
+                    "./workflow/experiments/Executables/"
                     + scenario.replace(".txt", "_0/")
                     + scenario_stem
                     + "_0_Output.sol",
@@ -187,7 +191,7 @@ def run_rdm_workflow() -> None:
                 )
             elif solver == "glpk":
                 AUX.data_processor_new(
-                    "./workflow/1_Experiment/Executables/"
+                    "./workflow/experiments/Executables/"
                     + scenario.replace(".txt", "_0/")
                     + scenario_stem
                     + "_0_Output.txt",
@@ -212,7 +216,7 @@ def run_rdm_workflow() -> None:
         # Step 10: Execute RDM experiment
         print("Start RDM experiment\n")
         AUX.run_scripts(
-            "./workflow/1_Experiment/0_experiment_manager.py",
+            "./workflow/experiments/experiment_manager.py",
             solver,
             osemosys_model,
             os.path.abspath("data/inputs"),
@@ -224,7 +228,7 @@ def run_rdm_workflow() -> None:
         # Step 11: Execute RDM experiment
         start3 = time.time()
         print("Start Output Dataset Creator\n")
-        AUX.run_scripts("./workflow/1_Experiment/1_output_dataset_creator.py")
+        AUX.run_scripts("./workflow/experiments/output_dataset_creator.py")
 
         print("Step 11 finished\n")
         end_3 = time.time()

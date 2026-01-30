@@ -3171,7 +3171,7 @@ def create_output_dataset_future_0(case, time_range_vector, first_list, structur
     #
     vars_as_appear = []
 
-    data_name = str('./workflow/1_Experiment/Executables/' + first_list[case]) + '/' + str(first_list[case]) + '_Output.txt'
+    data_name = str('./workflow/experiments/Executables/' + first_list[case]) + '/' + str(first_list[case]) + '_Output.txt'
     #
     n = 0
     break_this_while = False
@@ -3255,7 +3255,7 @@ def create_output_dataset_future_0(case, time_range_vector, first_list, structur
     linecache.clearcache()
     #%%
     #-----------------------------------------------------------------------------------------------------------%
-    output_adress = './workflow/1_Experiment/Executables/' + str(first_list[case])
+    output_adress = './workflow/experiments/Executables/' + str(first_list[case])
     combination_list = [] # [fuel, technology, emission, year]
     data_row_list = []
     for var in range(len(vars_as_appear)):
@@ -3423,7 +3423,10 @@ def run_osemosys( solver, scenario_dir, data_file, model_file, output_file ):
 
     file_aboslute_address = os.path.abspath(__file__)
     file_adress = re.escape( file_aboslute_address.replace( 'workflow_utils.py', '' ) )
-    file_config_address = get_config_main_path(os.path.abspath(''),os.path.join('workflow','3_Postprocessing'))
+    file_config_address = get_config_main_path(
+        os.path.abspath(''),
+        os.path.join('workflow', 'postprocessing'),
+    )
     
     str_start = "start /B start cmd.exe @cmd /k cd " + file_adress
 
@@ -3493,7 +3496,7 @@ def process_timeslices(input_file_path, num_time_slices_SDP_read, output_file_pa
     with open(output_file_path, 'w') as file:
         file.writelines(lines)
         
-def get_config_main_path(full_path, base_folder='3_Postprocessing'):
+def get_config_main_path(full_path, base_folder='postprocessing'):
     # Split the path into parts
     parts = full_path.split(os.sep)
     

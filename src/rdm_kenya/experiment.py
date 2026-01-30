@@ -27,7 +27,7 @@ def run_rdm_workflow() -> None:
 
     scenario_files = os.listdir(SCENARIOS_DIR)
 
-    interface_dir = Path("interface_rdm_inputs")
+    interface_dir = Path("data/inputs")
 
     setup_table = pd.read_csv(interface_dir / "Setup.csv")
 
@@ -215,7 +215,7 @@ def run_rdm_workflow() -> None:
             "./workflow/1_Experiment/0_experiment_manager.py",
             solver,
             osemosys_model,
-            os.path.abspath("interface_rdm_inputs"),
+            os.path.abspath("data/inputs"),
             shape_file=os.path.abspath(str(SHAPE_FILE_PATH)),
         )
 

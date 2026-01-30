@@ -1,4 +1,4 @@
-"""Thin wrapper for scenario discovery analysis."""
+"""Thin wrapper for running the RDM workflow."""
 
 from pathlib import Path
 import sys
@@ -8,7 +8,7 @@ SRC_DIR = REPO_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.append(str(SRC_DIR))
 
-from rdm_kenya.analysis import main
+from rdm_kenya.experiment import main
 
 
 if __name__ == "__main__":

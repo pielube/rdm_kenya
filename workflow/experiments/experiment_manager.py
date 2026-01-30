@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
 """Experiment manager for the OSeMOSYS workflow.
 
-Author: luisf
+Inputs:
+    sys.argv via callers in ``rdm_kenya.workflow_utils.run_scripts``.
+
+Outputs:
+    Generates OSeMOSYS model output files and parameter datasets for each
+    scenario future under the workflow experiments directories.
 """
 
 import errno
@@ -23,15 +28,14 @@ from pyDOE import lhs  # SOURCE: https://pypi.org/project/lhsmdu/.
 # Save a copy of the original sys.path
 original_sys_path = sys.path.copy()
 
-# Get the path of the "workflow" folder
-workflow_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-
-# Temporarily add "workflow" to sys.path
-sys.path.append(workflow_path)
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SRC_DIR = REPO_ROOT / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.append(str(SRC_DIR))
 
 try:
     # Import the module
-    import z_auxiliar_code as AUX
+    from rdm_kenya import utils as AUX
 finally:
     # Restore the original sys.path
     sys.path = original_sys_path
@@ -90,7 +94,7 @@ def main_executer(
             this_case[0]
         ).replace(".txt", "") + "_Output"
 
-        model_file = os.path.join(file_address.replace("1_Experiment", ""), osemosys_model)
+        model_file = os.path.join(file_address.replace("experiments", ""), osemosys_model)
 
         if solver == "glpk":
             str_solve = (
@@ -135,7 +139,7 @@ def main_executer(
         if solver in {"cbc", "cplex"}:
             AUX.data_processor_new(
                 output_file + ".sol",
-                "./workflow/1_Experiment/0_From_Confection/B1_Model_Structure.xlsx",
+                "./workflow/experiments/from_confection/B1_Model_Structure.xlsx",
                 str_scen,
                 str_fut,
                 solver,
@@ -145,7 +149,7 @@ def main_executer(
         elif solver == "glpk":
             AUX.data_processor_new(
                 output_file + ".txt",
-                "./workflow/1_Experiment/0_From_Confection/B1_Model_Structure.xlsx",
+                "./workflow/experiments/from_confection/B1_Model_Structure.xlsx",
                 str_scen,
                 str_fut,
                 solver,
@@ -742,7 +746,7 @@ if __name__ == '__main__':
     # 1.A) Extract the structure setup of the model based on "B1_Model_Structure.xlsx".
     current_script_path = os.path.dirname(os.path.abspath(__file__))
     structure_filename = os.path.join(
-        current_script_path, "0_From_Confection", "B1_Model_Structure.xlsx"
+        current_script_path, "from_confection", "B1_Model_Structure.xlsx"
     )
     structure_file = pd.ExcelFile(structure_filename)
     structure_sheetnames = structure_file.sheet_names  # see all sheet names

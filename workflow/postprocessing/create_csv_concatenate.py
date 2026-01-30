@@ -1,8 +1,15 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Fri Apr 19 18:37:25 2024
+"""Concatenate OSeMOSYS outputs into consolidated CSVs.
 
-@author: andreysava
+Inputs:
+    argv[1]: Case filename (e.g., ``BAU_0.txt``).
+    argv[2]: Tier path selector (e.g., ``1`` or ``3a``).
+    argv[3]: Solver name (e.g., ``glpk``, ``cbc``, ``cplex``).
+    argv[4]: Scenario list string.
+
+Outputs:
+    Writes consolidated CSV files and status markers to the configured workflow
+    output directories.
 """
 
 import os
@@ -13,7 +20,7 @@ import sys
 import shutil
 import numpy as np
 
-def get_config_main_path(full_path, base_folder='3_Postprocessing'):
+def get_config_main_path(full_path, base_folder='postprocessing'):
     # Split the path into parts
     parts = full_path.split(os.sep)
     

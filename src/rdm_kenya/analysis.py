@@ -33,7 +33,7 @@ except Exception:
 
 INPUTS_PATH_DEFAULT = "OSEMOSYS_Energy_Input.csv"
 OUTPUTS_PATH_DEFAULT = "OSEMOSYS_Energy_Output.csv"
-OUTDIR_BASE = "scenario_discovery_artifacts"
+OUTDIR_BASE = os.path.join("outputs", "scenario_discovery_artifacts")
 YEAR = 2050
 RANDOM_STATE = 42
 

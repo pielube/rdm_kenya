@@ -15,7 +15,8 @@ from sklearn.metrics import r2_score
 
 CSV_INPUT = "OSEMOSYS_Energy_Input.csv"
 CSV_OUTPUT = "OSEMOSYS_Energy_Output.csv"
-PLOT_DIR = "plots"
+OUTPUTS_DIR = "outputs"
+PLOT_DIR = os.path.join(OUTPUTS_DIR, "plots")
 os.makedirs(PLOT_DIR, exist_ok=True)
 
 # ---------- Helpers copied from your original logic ----------

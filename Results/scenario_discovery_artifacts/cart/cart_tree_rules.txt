@@ -1,43 +1,19 @@
-|--- capex_bess_2050_mean <= 823.30
-|   |--- discount_rate_batt_2050 <= 0.11
+|--- capex_bess_2050_mean <= 690.19
+|   |--- capex_wind_2050_mean <= 497.65
 |   |   |--- class: 1
-|   |--- discount_rate_batt_2050 >  0.11
-|   |   |--- capex_bess_2050_mean <= 579.90
+|   |--- capex_wind_2050_mean >  497.65
+|   |   |--- class: 1
+|--- capex_bess_2050_mean >  690.19
+|   |--- capex_impngs_2050_mean <= 23.49
+|   |   |--- demand_2050_sum <= 210.88
 |   |   |   |--- class: 1
-|   |   |--- capex_bess_2050_mean >  579.90
-|   |   |   |--- class: 0
-|--- capex_bess_2050_mean >  823.30
-|   |--- capex_impngs_2050_mean <= 23.37
-|   |   |--- capex_bess_2050_mean <= 998.53
-|   |   |   |--- discount_rate_wsb_2050_mean <= 0.08
-|   |   |   |   |--- capex_impngs_2050_mean <= 18.41
-|   |   |   |   |   |--- class: 0
-|   |   |   |   |--- capex_impngs_2050_mean >  18.41
-|   |   |   |   |   |--- class: 1
-|   |   |   |--- discount_rate_wsb_2050_mean >  0.08
-|   |   |   |   |--- discount_rate_wsb_2050_mean <= 0.09
-|   |   |   |   |   |--- class: 0
-|   |   |   |   |--- discount_rate_wsb_2050_mean >  0.09
-|   |   |   |   |   |--- class: 0
-|   |   |--- capex_bess_2050_mean >  998.53
-|   |   |   |--- discount_rate_batt_2050 <= 0.08
-|   |   |   |   |--- maxcap_geo006_2050_mean <= 4.15
-|   |   |   |   |   |--- class: 0
-|   |   |   |   |--- maxcap_geo006_2050_mean >  4.15
-|   |   |   |   |   |--- class: 0
-|   |   |   |--- discount_rate_batt_2050 >  0.08
-|   |   |   |   |--- demand_2050_sum <= 251.60
-|   |   |   |   |   |--- class: 0
-|   |   |   |   |--- demand_2050_sum >  251.60
-|   |   |   |   |   |--- class: 0
-|   |--- capex_impngs_2050_mean >  23.37
-|   |   |--- capex_bess_2050_mean <= 1111.31
-|   |   |   |--- discount_rate_wsb_2050_mean <= 0.09
-|   |   |   |   |--- capex_geo_2050_mean <= 3510.15
-|   |   |   |   |   |--- class: 1
-|   |   |   |   |--- capex_geo_2050_mean >  3510.15
-|   |   |   |   |   |--- class: 1
-|   |   |   |--- discount_rate_wsb_2050_mean >  0.09
+|   |   |--- demand_2050_sum >  210.88
+|   |   |   |--- maxcap_geo006_2050_mean <= 4.84
 |   |   |   |   |--- class: 1
-|   |   |--- capex_bess_2050_mean >  1111.31
-|   |   |   |--- class: 0
+|   |   |   |--- maxcap_geo006_2050_mean >  4.84
+|   |   |   |   |--- discount_rate_global <= 0.07
+|   |   |   |   |   |--- class: 1
+|   |   |   |   |--- discount_rate_global >  0.07
+|   |   |   |   |   |--- class: 0
+|   |--- capex_impngs_2050_mean >  23.49
+|   |   |--- class: 1

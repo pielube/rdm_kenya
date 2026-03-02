@@ -457,7 +457,7 @@ def plot_line_lcoe(key, df_in=None, df_out=None, save=False):
 def plot_line_gas_capex(key, df_in=None, df_out=None, save=False):
     df_in_local = df_in
 
-    df_solar = (
+    df_gas = (
         df_in_local.loc[
             df_in_local["TECHNOLOGY"].astype(str).str.contains("PWRNGS", na=False),
             ["Future.ID", "YEAR", "CapitalCost"],
@@ -465,25 +465,25 @@ def plot_line_gas_capex(key, df_in=None, df_out=None, save=False):
         .assign(CapitalCost=lambda d: pd.to_numeric(d["CapitalCost"], errors="coerce"))
         .dropna(subset=["CapitalCost"])
     )
-    df_solar = df_solar.loc[df_solar["CapitalCost"] != 0]
+    df_gas = df_gas.loc[df_gas["CapitalCost"] != 0]
 
-    df_solar_avg = (
-        df_solar.groupby(["Future.ID", "YEAR"], as_index=False)["CapitalCost"].mean()
+    df_gas_avg = (
+        df_gas.groupby(["Future.ID", "YEAR"], as_index=False)["CapitalCost"].mean()
                 .rename(columns={"CapitalCost": "CapitalCost_Solar"})
     )
 
     plt.figure(figsize=(10, 6))
-    for fid, grp in df_solar_avg.groupby("Future.ID"):
+    for fid, grp in df_gas_avg.groupby("Future.ID"):
         if fid != 0:
             plt.plot(grp["YEAR"], grp["CapitalCost_Solar"],
                      color="lightgrey", linewidth=1, alpha=0.7)
 
-    df0 = df_solar_avg.loc[df_solar_avg["Future.ID"] == 0]
+    df0 = df_gas_avg.loc[df_gas_avg["Future.ID"] == 0]
     if not df0.empty:
         plt.plot(df0["YEAR"], df0["CapitalCost_Solar"],
                  color="blue", linewidth=2.5, label="Scenario 0")
 
-    plt.title("Solar Capital Cost")  # original title, even if tech is PWRNGS
+    plt.title("Import natural gas cost")  # original title, even if tech is PWRNGS
     plt.xlabel("Year")
     plt.ylabel("Cost [USD/kW]")
     plt.legend()
@@ -606,14 +606,14 @@ if __name__ == "__main__":
     
     # Edit this list to choose which plots to generate
     plots_to_run = [
-        # "box_capacity",
-        # "box_activity",
-        # "bar_gas_capacity",
-        # "scatter_bess_gas",
-        # "line_demand",
+        "box_capacity",
+        "box_activity",
+        "bar_gas_capacity",
+        "scatter_bess_gas",
+        "line_demand",
         # "line_lcoe",
-        # "line_gas_capex",
-        # "line_total_capacity",
+        "line_gas_capex",
+        "line_total_capacity",
         "line_emissions",
     ]
 

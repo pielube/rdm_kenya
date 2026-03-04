@@ -14,6 +14,9 @@ import matplotlib.ticker as mticker
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
 
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
+
 
 # -------------------------------------------------------------------
 # Config: paths to input/output CSVs
@@ -80,7 +83,8 @@ def plot_boxplots_capacity(key, df_in=None, df_out=None, save=False):
     techs = [
         "PWRNGS", "PWRSOL", "PWRWND", "PWRGEO",
         "BESS_TECH", "PWRBIO",
-        "PWRHFO", "PWRHYD", "PWRPHS", "PWRURN", "IMPELC", "BACKSTOP"
+        "PWRHFO", "PWRHYD", "PWRPHS", "PWRURN", "IMPELC", 
+        "BACKSTOP"
     ]
 
     agg_list = []
@@ -410,42 +414,80 @@ def plot_line_demand(key, df_in=None, df_out=None, save=False):
         out_path = os.path.join(PLOT_DIR, f"{key}.png")
         plt.savefig(out_path, dpi=200, bbox_inches="tight")
 
-
-# -------------------------------------------------------------------
-# 6. Line: system-wide LCOE
-# -------------------------------------------------------------------
 def plot_line_lcoe(key, df_in=None, df_out=None, save=False):
+    df_in_local = df_in
     df_out_local = df_out
 
-    df_lcoe = (
-        df_out_local.loc[:, ["Future.ID", "YEAR", "LCOE"]]
-        .assign(LCOE=lambda d: pd.to_numeric(d["LCOE"], errors="coerce"))
-        .dropna(subset=["LCOE"])
+    # --- 1) Compute total electricity demand in 2050 by Future.ID (COMELC + RESELC + INDELC)
+    commodities = ["COMELC", "RESELC", "INDELC"]
+    df_dem2050 = (
+        df_in_local.loc[
+            (df_in_local["YEAR"] == 2050) & (df_in_local["COMMODITY"].isin(commodities)),
+            ["Future.ID", "SpecifiedAnnualDemand"],
+        ]
+        .assign(SpecifiedAnnualDemand=lambda d: pd.to_numeric(d["SpecifiedAnnualDemand"], errors="coerce"))
+        .dropna(subset=["SpecifiedAnnualDemand"])
     )
-    df_lcoe = df_lcoe.loc[df_lcoe["LCOE"] != 0]
-    df_lcoe = df_lcoe.groupby(["Future.ID", "YEAR"], as_index=False)["LCOE"].mean()
-    df_lcoe = df_lcoe[(df_lcoe["YEAR"] >= 2030) & (df_lcoe["YEAR"] <= 2050)]
-    df_lcoe["LCOE"] = df_lcoe["LCOE"] * 0.0036
+    df_dem2050 = df_dem2050.loc[df_dem2050["SpecifiedAnnualDemand"] != 0]
 
+    dem2050_by_future = (
+        df_dem2050.groupby("Future.ID", as_index=True)["SpecifiedAnnualDemand"]
+                  .sum()
+    )
+
+    # --- 2) Prepare LCOE series (as in your current function)
+    df_lcoe = (
+        df_out_local.loc[:, ["Future.ID", "YEAR", "LCOE_kWh"]]
+        .assign(LCOE=lambda d: pd.to_numeric(d["LCOE_kWh"], errors="coerce"))
+        .dropna(subset=["LCOE_kWh"])
+    )
+    df_lcoe = df_lcoe.loc[df_lcoe["LCOE_kWh"] != 0]
+    df_lcoe = df_lcoe.groupby(["Future.ID", "YEAR"], as_index=False)["LCOE_kWh"].mean()
+    df_lcoe = df_lcoe[(df_lcoe["YEAR"] >= 2030) & (df_lcoe["YEAR"] <= 2050)]
+    df_lcoe["LCOE_kWh"] = df_lcoe["LCOE_kWh"] * 0.0036  # keep your existing unit conversion
+
+    if df_lcoe.empty:
+        print("No LCOE data available for plot_line_lcoe.")
+        return
+
+    # Keep only futures that have a 2050 demand scalar (so colouring is defined)
+    df_lcoe = df_lcoe[df_lcoe["Future.ID"].isin(dem2050_by_future.index)]
+    if df_lcoe.empty:
+        print("No overlap between LCOE futures and 2050 demand futures.")
+        return
+
+    # --- 3) Build colour mapping based on 2050 demand
+    demand_vals = dem2050_by_future.loc[df_lcoe["Future.ID"].unique()].values
+    norm = mcolors.Normalize(vmin=float(np.min(demand_vals)), vmax=float(np.max(demand_vals)))
+    cmap = cm.viridis
+    sm = cm.ScalarMappable(norm=norm, cmap=cmap)
+
+    # --- 4) Plot: each scenario coloured by its 2050 total demand
     plt.figure(figsize=(10, 6))
+
     for fid, grp in df_lcoe.groupby("Future.ID"):
-        if fid == 0:
-            plt.plot(grp["YEAR"], grp["LCOE"],
-                     color="blue", linewidth=2, label="Scenario 0")
-        else:
-            plt.plot(grp["YEAR"], grp["LCOE"],
-                     color="lightgrey", linewidth=1, alpha=0.7)
+        d2050 = float(dem2050_by_future.loc[fid])
+        line_color = cmap(norm(d2050))
+
+        lw = 2.5 if fid == 0 else 1.2
+        alpha = 1.0 if fid == 0 else 0.85
+
+        plt.plot(grp["YEAR"], grp["LCOE_kWh"], color=line_color, linewidth=lw, alpha=alpha)
 
     plt.gca().xaxis.set_major_locator(mticker.MultipleLocator(5))
-    plt.gca().xaxis.set_major_formatter(mticker.FormatStrFormatter('%d'))
+    plt.gca().xaxis.set_major_formatter(mticker.FormatStrFormatter("%d"))
 
-    plt.title("System-wide LCOE by Scenario (2030–2050)")
+    plt.title("System-wide LCOE by Scenario (2030–2050)\nColoured by total electricity demand in 2050")
     plt.xlabel("Year")
     plt.ylabel("LCOE [USD/kWh]")
-    plt.legend()
+
+    # Colourbar for the demand mapping
+    cbar = plt.colorbar(sm)
+    cbar.set_label("Total electricity demand in 2050 (sum COMELC+RESELC+INDELC)")
+
     plt.tight_layout()
     plt.show()
-    
+
     if save:
         out_path = os.path.join(PLOT_DIR, f"{key}.png")
         plt.savefig(out_path, dpi=200, bbox_inches="tight")
@@ -580,6 +622,61 @@ def plot_line_emissions(key, df_in=None, df_out=None, save=False):
     if save:
         out_path = os.path.join(PLOT_DIR, f"{key}.png")
         plt.savefig(out_path, dpi=200, bbox_inches="tight")
+        
+# -------------------------------------------------------------------
+# 10. Line: DiscountRateIdv
+# -------------------------------------------------------------------
+def plot_line_discount_rate(key, df_in=None, df_out=None, save=False):
+    df_in_local = df_in
+
+    df_dr = (
+        df_in_local.loc[
+            df_in_local["TECHNOLOGY"].astype(str).str.contains("PWRSOL", na=False),
+            ["Future.ID", "YEAR", "DiscountRateIdv"]
+        ]
+        .assign(DiscountRateIdv=lambda d: pd.to_numeric(d["DiscountRateIdv"], errors="coerce"))
+        .dropna(subset=["DiscountRateIdv"])
+    )
+
+    df_dr = df_dr.loc[df_dr["DiscountRateIdv"] != 0]
+
+    df_dr_avg = (
+        df_dr.groupby(["Future.ID", "YEAR"], as_index=False)["DiscountRateIdv"]
+             .mean()
+    )
+
+    plt.figure(figsize=(10, 6))
+
+    for fid, grp in df_dr_avg.groupby("Future.ID"):
+        if fid != 0:
+            plt.plot(
+                grp["YEAR"],
+                grp["DiscountRateIdv"],
+                color="lightgrey",
+                linewidth=1,
+                alpha=0.7
+            )
+
+    df0 = df_dr_avg.loc[df_dr_avg["Future.ID"] == 0]
+    if not df0.empty:
+        plt.plot(
+            df0["YEAR"],
+            df0["DiscountRateIdv"],
+            color="blue",
+            linewidth=2.5,
+            label="Scenario 0"
+        )
+
+    plt.title("Discount Rate for Solar Technologies (PWRSOL)")
+    plt.xlabel("Year")
+    plt.ylabel("Discount Rate")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+    if save:
+        out_path = os.path.join(PLOT_DIR, f"{key}.png")
+        plt.savefig(out_path, dpi=200, bbox_inches="tight")
 
 
 # -------------------------------------------------------------------
@@ -591,10 +688,10 @@ AVAILABLE_PLOTS = {
     "bar_gas_capacity":   plot_bar_gas_capacity,
     "scatter_bess_gas":   plot_scatter_bess_vs_gas,
     "line_demand":        plot_line_demand,
-    "line_lcoe":          plot_line_lcoe,
     "line_gas_capex":     plot_line_gas_capex,
     "line_total_capacity": plot_line_total_capacity,
     "line_emissions":     plot_line_emissions,
+    "line_discount_rate": plot_line_discount_rate,
 }
 
 
@@ -611,10 +708,10 @@ if __name__ == "__main__":
         "bar_gas_capacity",
         "scatter_bess_gas",
         "line_demand",
-        # "line_lcoe",
         "line_gas_capex",
         "line_total_capacity",
         "line_emissions",
+        "line_discount_rate",
     ]
 
     for key in plots_to_run:

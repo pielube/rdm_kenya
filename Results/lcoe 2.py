@@ -3,12 +3,9 @@ import os
 import math
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
-import matplotlib.ticker as mticker
-
-import matplotlib.cm as cm
-import matplotlib.colors as mcolors
+import plotly.graph_objects as go
+import plotly.io as pio
 
 
 PLOT_DIR = "plots"   # if you want to save figures in the same folder as plots.py
@@ -407,9 +404,11 @@ def compute_lcoe_from_csv(input_csv: str,
     return lcoe_df.sort_values(["Future.ID", "YEAR"]).reset_index(drop=True)
 
 
+
+
 def compute_total_electricity_demand_2050(df_input: pd.DataFrame) -> pd.Series:
     """
-    Returns Series indexed by Future.ID with total SpecifiedAnnualDemand in 2050
+    Series indexed by Future.ID with total SpecifiedAnnualDemand in 2050
     for COMELC + INDELC + RESELC.
     """
     commodities = ["COMELC", "INDELC", "RESELC"]
@@ -423,279 +422,157 @@ def compute_total_electricity_demand_2050(df_input: pd.DataFrame) -> pd.Series:
     sub = sub.dropna(subset=["Future.ID", "SpecifiedAnnualDemand"])
     return sub.groupby("Future.ID")["SpecifiedAnnualDemand"].sum()
 
-def compute_backstop_capacity_2025(df_output: pd.DataFrame) -> pd.Series:
+
+def compute_backstop_capacity_2050(df_output: pd.DataFrame) -> pd.Series:
     """
-    Returns Series indexed by Future.ID with total BACKSTOP capacity in 2050.
-    Uses TotalCapacityAnnual from the output file.
+    Series indexed by Future.ID with total BACKSTOP capacity in 2050 from TotalCapacityAnnual.
     """
     sub = df_output.loc[
-        (pd.to_numeric(df_output["YEAR"], errors="coerce") == 2025)
+        (pd.to_numeric(df_output["YEAR"], errors="coerce") == 2050)
         & (df_output["TECHNOLOGY"].astype(str).str.strip() == "BACKSTOP"),
         ["Future.ID", "TotalCapacityAnnual"],
     ].copy()
 
     sub["TotalCapacityAnnual"] = pd.to_numeric(sub["TotalCapacityAnnual"], errors="coerce")
     sub = sub.dropna(subset=["Future.ID", "TotalCapacityAnnual"])
-
-    # Sum across any sub-rows in that year
     return sub.groupby("Future.ID")["TotalCapacityAnnual"].sum()
 
-# def plot_line_lcoe_full_horizon(lcoe_df: pd.DataFrame,
-#                                 save: bool = False,
-#                                 filename: str = "line_lcoe_full.png") -> None:
-#     """
-#     Plot system-wide LCOE by Future.ID over the full time horizon (2019–2050),
-#     in the same style as plot_line_lcoe, ensuring Scenario 0 is drawn LAST
-#     so that it is on top of all other lines.
-#     """
 
-#     df_lcoe = lcoe_df.copy()
-#     df_lcoe["LCOE"] = pd.to_numeric(df_lcoe["LCOE"], errors="coerce")
-#     df_lcoe = df_lcoe.dropna(subset=["LCOE"])
-#     df_lcoe = df_lcoe.loc[df_lcoe["LCOE"] != 0]
-
-#     # Convert to USD/kWh (same as plots.py)
-#     df_lcoe["LCOE_kWh"] = df_lcoe["LCOE"] * 0.0036
-
-#     plt.figure(figsize=(10, 6))
-
-#     # --- 1. Plot all scenarios EXCEPT 0 first (background) ---
-#     for fid, grp in df_lcoe.groupby("Future.ID"):
-#         if fid == 0:
-#             continue
-#         grp = grp.sort_values("YEAR")
-#         plt.plot(
-#             grp["YEAR"],
-#             grp["LCOE_kWh"],
-#             color="lightgrey",
-#             linewidth=1,
-#             alpha=0.7
-#         )
-
-#     # --- 2. Plot Scenario 0 LAST (foreground) ---
-#     if 0 in df_lcoe["Future.ID"].unique():
-#         grp0 = df_lcoe[df_lcoe["Future.ID"] == 0].sort_values("YEAR")
-#         plt.plot(
-#             grp0["YEAR"],
-#             grp0["LCOE_kWh"],
-#             color="blue",
-#             linewidth=2.5,
-#             label="Scenario 0"
-#         )
-
-#     # --- Styling ---
-#     ax = plt.gca()
-#     ax.set_xlim(2019, 2050)
-#     ax.xaxis.set_major_locator(mticker.MultipleLocator(5))
-#     ax.xaxis.set_major_formatter(mticker.FormatStrFormatter("%d"))
-
-#     plt.title("System-wide LCOE by Scenario (2019–2050)")
-#     plt.xlabel("Year")
-#     plt.ylabel("LCOE [USD/kWh]")
-#     plt.legend()
-#     plt.tight_layout()
-
-#     if save:
-#         out_path = os.path.join(PLOT_DIR, filename)
-#         plt.savefig(out_path, dpi=200, bbox_inches="tight")
-#         print(f"Saved: {out_path}")
-
-#     plt.show()
-
-# def plot_line_lcoe_full_horizon(lcoe_df: pd.DataFrame,
-#                                 dem2050: pd.Series,
-#                                 save: bool = False,
-#                                 filename: str = "line_lcoe_full.png") -> None:
-#     """
-#     Plot LCOE by Future.ID over 2019–2050, colour-coded by total electricity demand in 2050.
-#     Scenario 0 is drawn last (on top).
-#     """
-#     df_lcoe = lcoe_df.copy()
-#     df_lcoe["LCOE"] = pd.to_numeric(df_lcoe["LCOE"], errors="coerce")
-#     df_lcoe = df_lcoe.dropna(subset=["LCOE"])
-#     df_lcoe = df_lcoe.loc[df_lcoe["LCOE"] != 0]
-#     df_lcoe["LCOE_kWh"] = df_lcoe["LCOE"] * 0.0036
-
-#     # Keep only futures that have a demand scalar (so colour is defined)
-#     df_lcoe = df_lcoe[df_lcoe["Future.ID"].isin(dem2050.index)]
-#     if df_lcoe.empty:
-#         print("No overlap between LCOE futures and 2050 demand futures.")
-#         return
-
-#     # Colour mapping
-#     norm = mcolors.Normalize(vmin=float(dem2050.min()), vmax=float(dem2050.max()))
-#     cmap = cm.viridis
-
-#     plt.figure(figsize=(10, 6))
-
-#     # Background: all except scenario 0
-#     for fid, grp in df_lcoe.groupby("Future.ID"):
-#         if fid == 0:
-#             continue
-#         grp = grp.sort_values("YEAR")
-#         color = cmap(norm(float(dem2050.loc[fid])))
-#         plt.plot(grp["YEAR"], grp["LCOE_kWh"], color=color, linewidth=1.2, alpha=0.9)
-
-#     # Foreground: scenario 0 last
-#     if 0 in df_lcoe["Future.ID"].unique() and 0 in dem2050.index:
-#         grp0 = df_lcoe[df_lcoe["Future.ID"] == 0].sort_values("YEAR")
-#         color0 = cmap(norm(float(dem2050.loc[0])))
-#         plt.plot(grp0["YEAR"], grp0["LCOE_kWh"], color=color0, linewidth=2.5, label="Scenario 0")
-
-#     # Styling
-#     ax = plt.gca()
-#     ax.set_xlim(2019, 2050)
-#     ax.xaxis.set_major_locator(mticker.MultipleLocator(5))
-#     ax.xaxis.set_major_formatter(mticker.FormatStrFormatter("%d"))
-    
-#     plt.title("System-wide LCOE by Scenario (2019–2050)\nColoured by total electricity demand in 2050")
-#     plt.xlabel("Year")
-#     plt.ylabel("LCOE [USD/kWh]")
-    
-#     # colour gradient legend
-#     sm = cm.ScalarMappable(norm=norm, cmap=cmap)
-#     sm.set_array([])
-#     cbar = plt.colorbar(sm, ax=ax)
-#     cbar.set_label("Electricity demand in 2050 [PJ]")
-    
-#     plt.tight_layout()
-
-#     if save:
-#         out_path = os.path.join(PLOT_DIR, filename)
-#         plt.savefig(out_path, dpi=200, bbox_inches="tight")
-#         print(f"Saved: {out_path}")
-
-#     plt.show()
-    
-    
-def plot_line_lcoe_full_horizon(
+def plot_lcoe_plotly_browser(
     lcoe_df: pd.DataFrame,
-    backstop2025: pd.Series,
-    save: bool = False,
-    filename: str = "line_lcoe_full.png",
-    ) -> None:
-    """
-    Plot system-wide LCOE by Future.ID over 2019–2050, colour-coded by BACKSTOP
-    total installed capacity in 2050 (from TotalCapacityAnnual in the output file).
+    demand2050: pd.Series,
+    backstop2050: pd.Series,
+    *,
+    title: str = "System-wide LCOE by Scenario (2019–2050)",
+    output_html: str = "plots/line_lcoe_plotly.html",
+    lcoe_unit: str = "USD/kWh",
+    demand_unit: str = "PJ",
+    backstop_unit: str = "GW",
+    convert_lcoe_to_kwh: bool = True,
+    ) -> str:
 
-    Scenario 0 is drawn LAST so that it is on top of all other lines.
+    df = lcoe_df.copy()
 
-    Parameters
-    ----------
-    lcoe_df : pd.DataFrame
-        Must contain columns ['Future.ID', 'YEAR', 'LCOE'].
-    backstop2025 : pd.Series
-        Series indexed by Future.ID with BACKSTOP capacity in 2050 (e.g., GW).
-        Futures missing from this Series will be excluded unless you reindex/fill
-        before passing in.
-    save : bool
-        Whether to save the figure in PLOT_DIR.
-    filename : str
-        Output filename if save=True.
-    """
+    df["Future.ID"] = pd.to_numeric(df["Future.ID"], errors="coerce").astype("Int64")
+    df["YEAR"] = pd.to_numeric(df["YEAR"], errors="coerce").astype("Int64")
+    df["LCOE"] = pd.to_numeric(df["LCOE"], errors="coerce")
 
-    df_lcoe = lcoe_df.copy()
-    df_lcoe["LCOE"] = pd.to_numeric(df_lcoe["LCOE"], errors="coerce")
-    df_lcoe = df_lcoe.dropna(subset=["LCOE"])
-    df_lcoe = df_lcoe.loc[df_lcoe["LCOE"] != 0]
+    df = df.dropna(subset=["Future.ID", "YEAR", "LCOE"])
+    df = df[df["LCOE"] != 0]
 
-    # Convert to USD/kWh (same conversion used in plots.py)
-    df_lcoe["LCOE_kWh"] = df_lcoe["LCOE"] * 0.0036
+    if convert_lcoe_to_kwh:
+        df["LCOE_plot"] = df["LCOE"] * 0.0036
+    else:
+        df["LCOE_plot"] = df["LCOE"]
 
-    # Ensure the scalar series is numeric
-    backstop2025 = pd.to_numeric(backstop2025, errors="coerce").dropna()
+    futures = pd.Index(sorted(df["Future.ID"].unique()), name="Future.ID")
 
-    # Keep only futures that have a BACKSTOP scalar (colour defined)
-    df_lcoe = df_lcoe[df_lcoe["Future.ID"].isin(backstop2025.index)]
-    if df_lcoe.empty:
-        print("No overlap between LCOE futures and BACKSTOP-2050 futures.")
-        return
+    demand2050 = pd.to_numeric(demand2050, errors="coerce").reindex(futures).fillna(0.0)
+    backstop2050 = pd.to_numeric(backstop2050, errors="coerce").reindex(futures).fillna(0.0)
 
-    # Colour mapping (continuous)
-    vmin = float(backstop2025.min())
-    vmax = float(backstop2025.max())
-    if np.isclose(vmin, vmax):
-        # Avoid a degenerate normalisation; make a tiny range
-        vmax = vmin + 1e-9
+    df = df.merge(
+        demand2050.rename("Demand2050").reset_index(),
+        on="Future.ID",
+        how="left"
+    ).merge(
+        backstop2050.rename("Backstop2050").reset_index(),
+        on="Future.ID",
+        how="left"
+    )
 
-    norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
-    cmap = cm.viridis
+    df["Demand2050"] = df["Demand2050"].fillna(0.0)
+    df["Backstop2050"] = df["Backstop2050"].fillna(0.0)
 
-    plt.figure(figsize=(10, 6))
+    fig = go.Figure()
 
-    # 1) Plot all scenarios EXCEPT 0 first (background)
-    for fid, grp in df_lcoe.groupby("Future.ID"):
+    hovertemplate = (
+        "Future.ID: %{customdata[0]}<br>"
+        f"Demand 2050: %{{customdata[1]:.3f}} {demand_unit}<br>"
+        f"BACKSTOP 2050: %{{customdata[2]:.3f}} {backstop_unit}<br>"
+        "Year: %{x}<br>"
+        f"LCOE: %{{y:.4f}} {lcoe_unit}"
+        "<extra></extra>"
+    )
+
+    def add_trace(fid, color, width):
+
+        g = df[df["Future.ID"] == fid].sort_values("YEAR")
+
+        customdata = np.column_stack([
+            np.full(len(g), int(fid)),
+            g["Demand2050"].to_numpy(),
+            g["Backstop2050"].to_numpy(),
+        ])
+
+        fig.add_trace(
+            go.Scatter(
+                x=g["YEAR"],
+                y=g["LCOE_plot"],
+                mode="lines",
+                customdata=customdata,
+                hovertemplate=hovertemplate,
+                line=dict(color=color, width=width),
+                showlegend=False
+            )
+        )
+
+    # Background scenarios (grey)
+    for fid in futures:
         if fid == 0:
             continue
-        grp = grp.sort_values("YEAR")
-        color = cmap(norm(float(backstop2025.loc[fid])))
-        plt.plot(
-            grp["YEAR"],
-            grp["LCOE_kWh"],
-            color=color,
-            linewidth=1.2,
-            alpha=0.9,
-        )
+        add_trace(fid, color="rgba(150,150,150,0.5)", width=1)
 
-    # 2) Plot Scenario 0 LAST (foreground)
-    if 0 in df_lcoe["Future.ID"].unique() and 0 in backstop2025.index:
-        grp0 = df_lcoe[df_lcoe["Future.ID"] == 0].sort_values("YEAR")
-        color0 = cmap(norm(float(backstop2025.loc[0])))
-        plt.plot(
-            grp0["YEAR"],
-            grp0["LCOE_kWh"],
-            color=color0,
-            linewidth=2.5,
-            label="Scenario 0",
-        )
+    # Scenario 0 highlighted
+    if 0 in futures:
+        add_trace(0, color="blue", width=3)
 
-    # Styling
-    ax = plt.gca()
-    ax.set_xlim(2019, 2050)
-    ax.xaxis.set_major_locator(mticker.MultipleLocator(5))
-    ax.xaxis.set_major_formatter(mticker.FormatStrFormatter("%d"))
+    fig.update_layout(
+        title=title,
+        xaxis_title="Year",
+        yaxis_title=f"LCOE [{lcoe_unit}]",
+        hovermode="closest",
+        template="plotly_white",
+        showlegend=False,
+        #yaxis=dict(rangemode="tozero")
+    )
 
-    plt.title("System-wide LCOE by Scenario (2019–2050)\nColoured by BACKSTOP capacity in 2050")
-    plt.xlabel("Year")
-    plt.ylabel("LCOE [USD/kWh]")
-    plt.legend()
-    plt.tight_layout()
+    os.makedirs(os.path.dirname(output_html), exist_ok=True)
 
-    # Colourbar (gradient legend) attached to this axes
-    sm = cm.ScalarMappable(norm=norm, cmap=cmap)
-    sm.set_array([])
-    cbar = plt.colorbar(sm, ax=ax)
-    cbar.set_label("BACKSTOP capacity in 2050 [GW]")
+    pio.write_html(
+        fig,
+        file=output_html,
+        auto_open=True,
+        include_plotlyjs="cdn"
+    )
 
-    if save:
-        out_path = os.path.join(PLOT_DIR, filename)
-        plt.savefig(out_path, dpi=200, bbox_inches="tight")
-        print(f"Saved: {out_path}")
+    return output_html
 
-    plt.show()
-
-
-# ---------- Run + plot ----------
 
 if __name__ == "__main__":
     input_path = "OSEMOSYS_Energy_Input.csv"
     output_path = "OSEMOSYS_Energy_Output.csv"
 
+    # 1) Compute LCOE (your existing function)
     lcoe = compute_lcoe_from_csv(input_path, output_path, fallback_discount_rate=0.07)
 
-    # # quick check
-    # print(lcoe.head(20).to_string(index=False))
-    
-    # Plot LCOE with no colour coding
-    # plot_line_lcoe_full_horizon(lcoe, save=True)
-    
-    
-    # # Compute 2050 demand scalar once and plot with demand colour coding
-    # df_input = pd.read_csv(input_path, low_memory=False)
-    # dem2050 = compute_total_electricity_demand_2050(df_input) 
-    # plot_line_lcoe_full_horizon(lcoe, dem2050, save=True)
-    
-    # Compute 2025 backstop once and plot with backstop capacity colour coding
+    # 2) Compute metadata scalars for hover
+    df_input = pd.read_csv(input_path, low_memory=False)
     df_output = pd.read_csv(output_path, low_memory=False)
-    backstop2025 = compute_backstop_capacity_2025(df_output)
-    plot_line_lcoe_full_horizon(lcoe, backstop2025, save=True)
+
+    dem2050 = compute_total_electricity_demand_2050(df_input)         # PJ (unless you convert)
+    backstop2050 = compute_backstop_capacity_2050(df_output)          # GW (as stored)
+
+    # Optional: convert demand to TWh to match your earlier plot convention
+    # dem2050 = dem2050 * 0.27778
+
+    # 3) Plot in browser
+    plot_lcoe_plotly_browser(
+        lcoe,
+        dem2050,
+        backstop2050,
+        output_html="plots/line_lcoe_plotly.html",
+        demand_unit="PJ",      # or "TWh" if you convert above
+        backstop_unit="GW",
+        lcoe_unit="USD/kWh",
+        convert_lcoe_to_kwh=True,
+    )

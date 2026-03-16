@@ -295,6 +295,87 @@ def plot_bar_gas_capacity(key, df_in=None, df_out=None, save=False):
     if save:
         out_path = os.path.join(PLOT_DIR, f"{key}.png")
         plt.savefig(out_path, dpi=200, bbox_inches="tight")
+        
+# -------------------------------------------------------------------
+# 3. Bar chart: 2050 gas capacity / peak demand
+# -------------------------------------------------------------------
+def plot_bar_gas_capacity_ratio(key, df_in=None, df_out=None, save=False):
+    df_in_local = df_in
+    df_out_local = df_out
+
+    # ---------------------------------------------------------------
+    # 1. Natural gas capacity in 2050
+    # ---------------------------------------------------------------
+    gas2050 = (
+        df_out_local.loc[
+            (df_out_local["YEAR"] == 2050)
+            & (df_out_local["TECHNOLOGY"].astype(str).str.contains("PWRNGS", na=False)),
+            ["Future.ID", "TotalCapacityAnnual"],
+        ]
+        .assign(TotalCapacityAnnual=lambda d: pd.to_numeric(d["TotalCapacityAnnual"], errors="coerce"))
+        .dropna(subset=["TotalCapacityAnnual"])
+        .groupby("Future.ID", as_index=False)["TotalCapacityAnnual"]
+        .sum()
+        .rename(columns={"TotalCapacityAnnual": "GasCapacity2050"})
+    )
+
+    # ---------------------------------------------------------------
+    # 2. Peak demand in 2050
+    # ---------------------------------------------------------------
+    commodities = ["COMELC", "RESELC", "INDELC"]
+
+    demand2050 = (
+        df_in_local.loc[
+            (df_in_local["YEAR"] == 2050)
+            & (df_in_local["COMMODITY"].isin(commodities)),
+            ["Future.ID", "SpecifiedAnnualDemand"],
+        ]
+        .assign(SpecifiedAnnualDemand=lambda d: pd.to_numeric(d["SpecifiedAnnualDemand"], errors="coerce"))
+        .dropna(subset=["SpecifiedAnnualDemand"])
+        .groupby("Future.ID", as_index=False)["SpecifiedAnnualDemand"]
+        .sum()
+    )
+
+    # Convert annual demand to peak demand
+    demand2050["PeakDemand2050"] = demand2050["SpecifiedAnnualDemand"] * (2.35 / 50.51)
+
+    demand2050 = demand2050[["Future.ID", "PeakDemand2050"]]
+
+    # ---------------------------------------------------------------
+    # 3. Merge and compute ratio
+    # ---------------------------------------------------------------
+    plot_df = pd.merge(gas2050, demand2050, on="Future.ID", how="inner")
+
+    if plot_df.empty:
+        print("No overlapping futures for gas capacity ratio plot.")
+        return
+
+    plot_df["Gas_to_Peak_Ratio"] = plot_df["GasCapacity2050"] / plot_df["PeakDemand2050"]
+
+    plot_df = plot_df.sort_values("Gas_to_Peak_Ratio", ascending=False)
+
+    # ---------------------------------------------------------------
+    # 4. Plot
+    # ---------------------------------------------------------------
+    plt.figure(figsize=(14, 6))
+    sns.barplot(
+        data=plot_df,
+        x="Future.ID",
+        y="Gas_to_Peak_Ratio",
+        order=plot_df["Future.ID"],
+        color="steelblue",
+        width=1,
+    )
+
+    plt.gca().set_xticklabels([])
+    plt.xlabel("")
+    plt.ylabel("Natural Gas Capacity / Peak Demand (2050)")
+    plt.tight_layout()
+    plt.show()
+
+    if save:
+        out_path = os.path.join(PLOT_DIR, f"{key}.png")
+        plt.savefig(out_path, dpi=200, bbox_inches="tight")
 
 
 # -------------------------------------------------------------------
@@ -589,6 +670,7 @@ AVAILABLE_PLOTS = {
     "box_capacity":       plot_boxplots_capacity,
     "box_activity":       plot_boxplots_activity,
     "bar_gas_capacity":   plot_bar_gas_capacity,
+    "bar_gas_capacity_ratio": plot_bar_gas_capacity_ratio,
     "scatter_bess_gas":   plot_scatter_bess_vs_gas,
     "line_demand":        plot_line_demand,
     "line_lcoe":          plot_line_lcoe,
@@ -606,15 +688,16 @@ if __name__ == "__main__":
     
     # Edit this list to choose which plots to generate
     plots_to_run = [
-        "box_capacity",
-        "box_activity",
+        # "box_capacity",
+        # "box_activity",
         "bar_gas_capacity",
-        "scatter_bess_gas",
-        "line_demand",
-        # "line_lcoe",
-        "line_gas_capex",
-        "line_total_capacity",
-        "line_emissions",
+        "bar_gas_capacity_ratio",
+        # "scatter_bess_gas",
+        # "line_demand",
+        # # "line_lcoe",
+        # "line_gas_capex",
+        # "line_total_capacity",
+        # "line_emissions",
     ]
 
     for key in plots_to_run:

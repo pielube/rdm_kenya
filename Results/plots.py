@@ -688,10 +688,10 @@ if __name__ == "__main__":
     
     # Edit this list to choose which plots to generate
     plots_to_run = [
-        # "box_capacity",
+        "box_capacity",
         # "box_activity",
-        "bar_gas_capacity",
-        "bar_gas_capacity_ratio",
+        # "bar_gas_capacity",
+        # "bar_gas_capacity_ratio",
         # "scatter_bess_gas",
         # "line_demand",
         # # "line_lcoe",

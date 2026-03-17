@@ -561,7 +561,7 @@ def main():
     parser.add_argument(
         "--algo",
         choices=["CART", "PRIM_EMA", "PRIM_PLATYPUS"],
-        default="CART",
+        default="PRIM_EMA",
         help="Algorithm to run (default: CART).",
     )
     parser.add_argument(

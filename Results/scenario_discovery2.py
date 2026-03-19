@@ -34,7 +34,7 @@ except Exception:
 INPUTS_PATH_DEFAULT = "OSEMOSYS_Energy_Input.csv"
 OUTPUTS_PATH_DEFAULT = "OSEMOSYS_Energy_Output.csv"
 OUTDIR_BASE = "scenario_discovery_artifacts"
-YEAR = 2040
+YEAR = 2050
 RANDOM_STATE = 42
 
 os.makedirs(OUTDIR_BASE, exist_ok=True)
@@ -48,7 +48,6 @@ def read_table(path: str) -> pd.DataFrame:
         return pd.read_excel(path)
     else:
         raise SystemExit(f"Unsupported file type for: {path}")
-
 
 # ---- Feature & outcome builders (shared across all algorithms) -------------
 
@@ -68,8 +67,8 @@ def build_features(inputs: pd.DataFrame) -> pd.DataFrame:
         f = {"Scen_fut": scen}
         sub50 = sub.loc[sub.get("YEAR").eq(YEAR) if "YEAR" in sub.columns else []]
 
-        # (1) SpecifiedAnnualDemand in 2050 summed
-        f["demand_2050_sum"] = to_num(sub50.get("SpecifiedAnnualDemand", np.nan)).sum()
+        # # (1) SpecifiedAnnualDemand in 2050 summed
+        # f["demand_2050_sum"] = to_num(sub50.get("SpecifiedAnnualDemand", np.nan)).sum()
 
         # (2) CapitalCost in 2050 over PWRGEO*
         if {"TECHNOLOGY", "CapitalCost"}.issubset(sub50.columns):
@@ -89,14 +88,14 @@ def build_features(inputs: pd.DataFrame) -> pd.DataFrame:
         else:
             f["gas_price_2050_median_nonzero"] = np.nan
 
-        # (4) CapitalCost in 2050 over PWRURN (nuclear)
-        if {"TECHNOLOGY", "CapitalCost"}.issubset(sub50.columns):
-            nuc50 = sub50.loc[sub50["TECHNOLOGY"].astype(str).str.startswith("PWRURN")]
-            vals = to_num(nuc50["CapitalCost"])
-            vals = vals[(~vals.isna()) & (vals != 0)]
-            f["capex_nuc_2050_mean"] = vals.mean() if not vals.empty else np.nan
-        else:
-            f["capex_nuc_2050_mean"] = np.nan
+        # # (4) CapitalCost in 2050 over PWRURN (nuclear)
+        # if {"TECHNOLOGY", "CapitalCost"}.issubset(sub50.columns):
+        #     nuc50 = sub50.loc[sub50["TECHNOLOGY"].astype(str).str.startswith("PWRURN")]
+        #     vals = to_num(nuc50["CapitalCost"])
+        #     vals = vals[(~vals.isna()) & (vals != 0)]
+        #     f["capex_nuc_2050_mean"] = vals.mean() if not vals.empty else np.nan
+        # else:
+        #     f["capex_nuc_2050_mean"] = np.nan
             
         # (4) CapitalCost in 2050 over IMPNGS (natural gas)
         if {"TECHNOLOGY", "CapitalCost"}.issubset(sub50.columns):
@@ -134,13 +133,13 @@ def build_features(inputs: pd.DataFrame) -> pd.DataFrame:
         else:
             f["capex_wind_2050_mean"] = np.nan
 
-        # (8) Global discount rate (DiscountRate)
-        if "DiscountRate" in sub.columns:
-            vals = to_num(sub["DiscountRate"])
-            vals = vals[(~vals.isna()) & (vals != 0)]
-            f["discount_rate_global"] = vals.iloc[0] if not vals.empty else np.nan
-        else:
-            f["discount_rate_global"] = np.nan
+        # # (8) Global discount rate (DiscountRate)
+        # if "DiscountRate" in sub.columns:
+        #     vals = to_num(sub["DiscountRate"])
+        #     vals = vals[(~vals.isna()) & (vals != 0)]
+        #     f["discount_rate_global"] = vals.iloc[0] if not vals.empty else np.nan
+        # else:
+        #     f["discount_rate_global"] = np.nan
 
         # (10) DiscountRateIdv for batteries (BESS_TECH) in 2050
         if {"TECHNOLOGY", "YEAR", "DiscountRateIdv"}.issubset(sub.columns):
@@ -154,30 +153,31 @@ def build_features(inputs: pd.DataFrame) -> pd.DataFrame:
         else:
             f["discount_rate_batt_2050"] = np.nan
             
-        # (11) DiscountRateIdv for wind (PWRWND) in 2050
-        if {"TECHNOLOGY", "YEAR", "DiscountRateIdv"}.issubset(sub.columns):
-            bat50 = sub.loc[
-                (sub["TECHNOLOGY"].astype(str).str.startswith("PWRWND"))
-                & (sub["YEAR"] == YEAR)
-            ]
-            vals = to_num(bat50["DiscountRateIdv"])
-            vals = vals[(~vals.isna()) & (vals != 0)]
-            f["discount_rate_wnd_2050"] = vals.mean() if not vals.empty else np.nan
-        else:
-            f["discount_rate_wnd_2050"] = np.nan
+        # # (11) DiscountRateIdv for wind (PWRWND) in 2050
+        # if {"TECHNOLOGY", "YEAR", "DiscountRateIdv"}.issubset(sub.columns):
+        #     bat50 = sub.loc[
+        #         (sub["TECHNOLOGY"].astype(str).str.startswith("PWRWND"))
+        #         & (sub["YEAR"] == YEAR)
+        #     ]
+        #     vals = to_num(bat50["DiscountRateIdv"])
+        #     vals = vals[(~vals.isna()) & (vals != 0)]
+        #     f["discount_rate_wnd_2050"] = vals.mean() if not vals.empty else np.nan
+        # else:
+        #     f["discount_rate_wnd_2050"] = np.nan
             
-        # (11) DiscountRateIdv for solar (PWRSOL) in 2050
-        if {"TECHNOLOGY", "YEAR", "DiscountRateIdv"}.issubset(sub.columns):
-            bat50 = sub.loc[
-                (sub["TECHNOLOGY"].astype(str).str.startswith("PWRSOL"))
-                & (sub["YEAR"] == YEAR)
-            ]
-            vals = to_num(bat50["DiscountRateIdv"])
-            vals = vals[(~vals.isna()) & (vals != 0)]
-            f["discount_rate_sol_2050"] = vals.mean() if not vals.empty else np.nan
-        else:
-            f["discount_rate_sol_2050"] = np.nan
-                        
+        # # (11) DiscountRateIdv for solar (PWRSOL) in 2050
+        # if {"TECHNOLOGY", "YEAR", "DiscountRateIdv"}.issubset(sub.columns):
+        #     bat50 = sub.loc[
+        #         (sub["TECHNOLOGY"].astype(str).str.startswith("PWRSOL"))
+        #         & (sub["YEAR"] == YEAR)
+        #     ]
+        #     vals = to_num(bat50["DiscountRateIdv"])
+        #     vals = vals[(~vals.isna()) & (vals != 0)]
+        #     f["discount_rate_sol_2050"] = vals.mean() if not vals.empty else np.nan
+        # else:
+        #     f["discount_rate_sol_2050"] = np.nan
+
+            
         # (13) TotalAnnualMaxCapacity for PWRGEO006 in 2050 (drop 0 and NaN), mean
         if {"TECHNOLOGY", "TotalAnnualMaxCapacity"}.issubset(sub50.columns):
             geo006_50 = sub50.loc[sub50["TECHNOLOGY"].astype(str) == "PWRGEO006", "TotalAnnualMaxCapacity"]
@@ -239,14 +239,7 @@ def build_outcome_no_gas_2050(outputs: pd.DataFrame) -> pd.DataFrame:
 
     # Option 1: No gas defined as capacity = 0 
     eps = 1e-6
-    gas2050["no_gas_2050"] = (gas2050["gas_cap_2050"].abs() <= eps).astype(int)
-    
-    # Option 2: No gas defined as capacity < 250 MW
-    
-    # NO_GAS_THRESHOLD_GW = 0.25
-    # gas2050["no_gas_2050"] = (
-    #     gas2050["gas_cap_2050"] < NO_GAS_THRESHOLD_GW
-    # ).astype(int)
+    gas2050["no_gas_2050"] = (gas2050["gas_cap_2050"].abs() > eps).astype(int)    
 
     return gas2050[["Scen_fut", "gas_cap_2050", "no_gas_2050"]]
 
@@ -329,7 +322,7 @@ def run_cart(df: pd.DataFrame, feature_cols: List[str], outdir: str) -> None:
         plot_tree(
             best,
             feature_names=feature_cols,
-            class_names=["gas_present", "no_gas"],
+            class_names=["no_gas", "gas_present"],
             filled=True,
             rounded=True,
         )
@@ -364,9 +357,9 @@ def run_prim_ema(df: pd.DataFrame, feature_cols: List[str], outdir: str) -> None
     os.makedirs(outdir, exist_ok=True)
 
     X = df[feature_cols].apply(pd.to_numeric, errors="coerce")
-    y = df["no_gas_2050"].values  # 1 = no gas (cases of interest)
+    y = df["no_gas_2050"].values  # 1 = gas present (cases of interest)
 
-    p = ema_prim.Prim(X, y, threshold=0.5)  # focus on high no_gas
+    p = ema_prim.Prim(X, y, threshold=0.5)  # focus on high gas_present
     box = p.find_box()
 
     # Tradeoff plot
@@ -419,7 +412,7 @@ def run_prim_platypus(df: pd.DataFrame, feature_cols: List[str], outdir: str) ->
     Xnum = df[feature_cols].apply(pd.to_numeric, errors="coerce")
     y = df["no_gas_2050"]
 
-    print("Running PRIM (Project-Platypus) for NO gas in 2050…")
+    print("Running PRIM (Project-Platypus) for GAS PRESENT in 2050…")
     p = prim.Prim(Xnum, y, threshold=0.5, threshold_type=">")
     box = p.find_box()
 
@@ -470,7 +463,7 @@ def main():
     parser.add_argument(
         "--algo",
         choices=["CART", "PRIM_EMA", "PRIM_PLATYPUS"],
-        default="CART",
+        default="PRIM_EMA",
         help="Algorithm to run (default: CART).",
     )
     parser.add_argument(
@@ -499,11 +492,11 @@ def main():
     feature_cols = [c for c in df.columns if c not in ("Scen_fut", "gas_cap_2050", "no_gas_2050")]
 
     n = len(df)
-    n_no = int(df["no_gas_2050"].sum())
-    n_yes = n - n_no
+    n_gas = int(df["no_gas_2050"].sum())
+    n_no_gas = n - n_gas
     print(
-        f"Scenarios: {n}  —  no_gas_2050 = 1 in {n_no} ({n_no / n:.1%}); "
-        f"0 in {n_yes} ({n_yes / n:.1%})"
+    f"Scenarios: {n}  —  gas_present_2050 = 1 in {n_gas} ({n_gas / n:.1%}); "
+    f"0 in {n_no_gas} ({n_no_gas / n:.1%})"
     )
     print("Features used:", feature_cols)
 

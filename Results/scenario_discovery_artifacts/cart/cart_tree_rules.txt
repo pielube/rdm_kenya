@@ -1,4 +1,7 @@
-|--- capex_bess_2050_mean <= 639.86
+|--- capex_bess_2050_mean <= 530.12
+|   |--- capex_wind_2050_mean <= 1105.35
+|   |   |--- class: 0
+|   |--- capex_wind_2050_mean >  1105.35
+|   |   |--- class: 0
+|--- capex_bess_2050_mean >  530.12
 |   |--- class: 1
-|--- capex_bess_2050_mean >  639.86
-|   |--- class: 0

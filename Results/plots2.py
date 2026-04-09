@@ -168,11 +168,14 @@ def plot_boxplots_capacity(key, df_in=None, df_out=None, save=False):
     import matplotlib.pyplot as plt
     import matplotlib.ticker as mticker
 
+    if df_out is None:
+        raise ValueError("df_out must be provided.")
+
     df = df_out.copy()
 
     techs = [
         "PWRSOL", "PWRWND", "BESS_TECH",
-        "PWRHYD", "PWRGEO", "PWRNGS",
+        "PWRNGS", "PWRGEO", "PWRHYD",
     ]
 
     tech_name_map = {
@@ -184,16 +187,24 @@ def plot_boxplots_capacity(key, df_in=None, df_out=None, save=False):
         "PWRHYD": "Hydro",
     }
 
+    # Only plot these years
+    plot_years = [2030, 2035, 2040, 2045, 2050]
+
     agg_list = []
     for prefix in techs:
         subset = df[df["TECHNOLOGY"].astype(str).str.contains(prefix, na=False)].copy()
         if subset.empty:
             continue
 
+        subset["YEAR"] = pd.to_numeric(subset["YEAR"], errors="coerce")
         subset["TotalCapacityAnnual"] = pd.to_numeric(
             subset["TotalCapacityAnnual"], errors="coerce"
         )
-        subset = subset.dropna(subset=["TotalCapacityAnnual"])
+        subset = subset.dropna(subset=["Future.ID", "YEAR", "TotalCapacityAnnual"])
+        subset = subset[subset["YEAR"].isin(plot_years)].copy()
+
+        if subset.empty:
+            continue
 
         grouped = (
             subset.groupby(["Future.ID", "YEAR"], as_index=False)["TotalCapacityAnnual"]
@@ -207,12 +218,13 @@ def plot_boxplots_capacity(key, df_in=None, df_out=None, save=False):
         return
 
     df_all = pd.concat(agg_list, ignore_index=True)
-    df_all["YEAR"] = df_all["YEAR"].astype(int).astype(str)
 
-    year_order = sorted(df_all["YEAR"].unique(), key=int)
-    years_num = list(map(int, year_order))
-    keep_idx = [i for i, y in enumerate(years_num) if y >= 2020 and (y - 2020) % 5 == 0]
-    keep_labs = [str(years_num[i]) for i in keep_idx]
+    if df_all.empty:
+        print("No valid data available for capacity boxplots.")
+        return
+
+    df_all["YEAR"] = df_all["YEAR"].astype(int).astype(str)
+    year_order = [str(y) for y in plot_years]
 
     ymin = 0
     ymax = df_all["TotalCapacityAnnual"].max() * 1.03
@@ -240,6 +252,7 @@ def plot_boxplots_capacity(key, df_in=None, df_out=None, save=False):
         col="TechGroup",
         col_wrap=3,
         kind="box",
+        width=0.3,
         sharey=True,
         order=year_order,
         height=1.95,
@@ -247,28 +260,23 @@ def plot_boxplots_capacity(key, df_in=None, df_out=None, save=False):
         whis=[1, 99],
         fliersize=1.2,
         linewidth=0.7,
-        boxprops={"edgecolor": "0.25", "linewidth": 0.7},
-        whiskerprops={"color": "0.35", "linewidth": 0.7},
-        capprops={"color": "0.35", "linewidth": 0.7},
-        medianprops={"color": "0.15", "linewidth": 0.9},
+        boxprops={"edgecolor": "0.25", "linewidth": 0.5},
+        whiskerprops={"color": "0.35", "linewidth": 0.5},
+        capprops={"color": "0.35", "linewidth": 0.5},
+        medianprops={"color": "0.15", "linewidth": 0.7},
     )
 
     g.set_titles("")
     g.set_axis_labels("Year", "Installed capacity [GW]")
 
     ncols = 3
-    nrows = int(np.ceil(len(g.axes.flatten()) / ncols))
 
     for i, ax in enumerate(g.axes.flatten()):
-        row = i // ncols
         col = i % ncols
         tech_code = g.col_names[i]
 
-        ax.set_title(tech_name_map.get(tech_code, tech_code), y=0.90, pad=1.5)
+        ax.set_title(tech_name_map.get(tech_code, tech_code), y=0.97, pad=1.5)
         ax.set_ylim(ymin, ymax)
-
-        ax.xaxis.set_major_locator(mticker.FixedLocator(keep_idx))
-        ax.xaxis.set_major_formatter(mticker.FixedFormatter(keep_labs))
 
         ax.grid(axis="y", linestyle="-", linewidth=0.5, alpha=0.35)
         ax.grid(axis="x", visible=False)
@@ -282,11 +290,7 @@ def plot_boxplots_capacity(key, df_in=None, df_out=None, save=False):
             ax.tick_params(axis="y", labelleft=False)
             ax.set_ylabel("")
 
-        if row == nrows - 1:
-            ax.set_xlabel("")
-        else:
-            ax.set_xlabel("")
-
+        ax.set_xlabel("")
         ax.tick_params(axis="x", rotation=0, pad=1)
         ax.tick_params(axis="y", pad=1)
 
@@ -311,62 +315,51 @@ def plot_boxplots_capacity(key, df_in=None, df_out=None, save=False):
 # 2. Boxplots: activity by tech
 # -------------------------------------------------------------------
 def plot_boxplots_activity(key, df_in=None, df_out=None, save=False):
-    df = df_out
+    import os
+    import numpy as np
+    import pandas as pd
+    import seaborn as sns
+    import matplotlib.pyplot as plt
 
-    def plot_capacity_boxplot_for_prefix(
-        df: pd.DataFrame,
-        tech_prefix: str,
-        value_col: str = "TotalTechnologyAnnualActivity",
-        year_col: str = "YEAR",
-        future_col: str = "Future.ID",
-        title: str | None = None,
-        save: bool = False,
-        out_dir: str = ".",
-        figsize=(12, 6),
-    ):
-        mask = df["TECHNOLOGY"].astype(str).str.contains(tech_prefix, na=False)
-        subset = df.loc[mask, [year_col, future_col, value_col]].copy()
-
-        if subset.empty:
-            print(f"[{tech_prefix}] No rows matched. Skipping.")
-            return
-
-        subset[value_col] = pd.to_numeric(subset[value_col], errors="coerce")
-        subset = subset.dropna(subset=[value_col])
-        if subset.empty:
-            print(f"[{tech_prefix}] All values NaN. Skipping.")
-            return
-
-        grouped = (
-            subset.groupby([year_col, future_col], as_index=False)[value_col]
-                  .sum()
-        )
-
-        plt.figure(figsize=figsize)
-        sns.boxplot(data=grouped, x=year_col, y=value_col, color="skyblue")
-        plt.title(title or f"{tech_prefix} Activity across Futures")
-        plt.xlabel("Year")
-        plt.ylabel(f"{value_col} (summed across sub-techs)")
-        plt.xticks(rotation=45)
-        plt.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.6)
-        plt.tight_layout()
-        plt.show()
+    df = df_out.copy()
 
     techs = [
-        "PWRNGS", "PWRSOL", "PWRWND", "PWRGEO",
-        "BESS_TECH", "PWRBIO",
-        "PWRHFO", "PWRHYD", "PWRPHS", "PWRURN", "IMPELC", "BACKSTOP"
+        "PWRSOL", "PWRWND", "BESS_TECH",
+        "PWRNGS", "PWRGEO", "PWRHYD",
     ]
+
+    tech_name_map = {
+        "PWRSOL": "Solar",
+        "PWRWND": "Wind",
+        "BESS_TECH": "Battery storage",
+        "PWRNGS": "Natural gas",
+        "PWRGEO": "Geothermal",
+        "PWRHYD": "Hydro",
+    }
+
+    # Only plot these years
+    plot_years = [2030, 2035, 2040, 2045, 2050]
 
     agg_list = []
     for prefix in techs:
         subset = df[df["TECHNOLOGY"].astype(str).str.contains(prefix, na=False)].copy()
         if subset.empty:
             continue
+
+        subset["YEAR"] = pd.to_numeric(subset["YEAR"], errors="coerce")
+        subset["TotalTechnologyAnnualActivity"] = pd.to_numeric(
+            subset["TotalTechnologyAnnualActivity"], errors="coerce"
+        )
+        subset = subset.dropna(subset=["Future.ID", "YEAR", "TotalTechnologyAnnualActivity"])
+        subset = subset[subset["YEAR"].isin(plot_years)].copy()
+
+        if subset.empty:
+            continue
+
         grouped = (
             subset.groupby(["Future.ID", "YEAR"], as_index=False)["TotalTechnologyAnnualActivity"]
-                  .sum()
-                  .assign(TechGroup=prefix)
+            .sum()
+            .assign(TechGroup=prefix)
         )
         agg_list.append(grouped)
 
@@ -376,37 +369,96 @@ def plot_boxplots_activity(key, df_in=None, df_out=None, save=False):
 
     df_all = pd.concat(agg_list, ignore_index=True)
 
-    df_all["YEAR"] = df_all["YEAR"].astype(str)
-    year_order = sorted(df_all["YEAR"].unique(), key=int)
+    if df_all.empty:
+        print("No valid data available for activity boxplots.")
+        return
+
+    df_all["YEAR"] = df_all["YEAR"].astype(int).astype(str)
+    year_order = [str(y) for y in plot_years]
+
+    sns.set_theme(style="whitegrid", context="paper")
+
+    plt.rcParams.update({
+        "font.size": 7,
+        "axes.titlesize": 8,
+        "axes.labelsize": 8,
+        "xtick.labelsize": 6.5,
+        "ytick.labelsize": 6.5,
+        "legend.fontsize": 7,
+        "axes.linewidth": 0.6,
+        "xtick.major.width": 0.6,
+        "ytick.major.width": 0.6,
+        "xtick.major.size": 2.5,
+        "ytick.major.size": 2.5,
+    })
+
+    ymin = 0
+    ymax = df_all["TotalTechnologyAnnualActivity"].max() * 1.03
 
     g = sns.catplot(
         data=df_all,
-        x="YEAR", y="TotalTechnologyAnnualActivity",
-        col="TechGroup", col_wrap=3,
-        kind="box", sharey=False,
-        height=3.5, aspect=1.2,
+        x="YEAR",
+        y="TotalTechnologyAnnualActivity",
+        col="TechGroup",
+        col_wrap=3,
+        kind="box",
+        sharey=True,
         order=year_order,
+        height=1.95,
+        aspect=1.18,
         whis=[1, 99],
+        fliersize=1.2,
+        linewidth=0.7,
+        boxprops={"edgecolor": "0.25", "linewidth": 0.5},
+        whiskerprops={"color": "0.35", "linewidth": 0.5},
+        capprops={"color": "0.35", "linewidth": 0.5},
+        medianprops={"color": "0.15", "linewidth": 0.7},
     )
 
-    g.set_titles("{col_name}")
+    g.set_titles("")
     g.set_axis_labels("Year", "Annual activity [PJ]")
 
-    years_num = list(map(int, year_order))
-    keep_idx = [i for i, y in enumerate(years_num) if y >= 2020 and (y - 2020) % 5 == 0]
-    keep_labs = [str(years_num[i]) for i in keep_idx]
+    ncols = 3
 
-    for ax in g.axes.flatten():
-        ax.xaxis.set_major_locator(mticker.FixedLocator(keep_idx))
-        ax.xaxis.set_major_formatter(mticker.FixedFormatter(keep_labs))
+    for i, ax in enumerate(g.axes.flatten()):
+        col = i % ncols
+        tech_code = g.col_names[i]
 
-    plt.subplots_adjust(top=0.9)
-    g.fig.suptitle("Activity Across Futures (Boxplots by Technology)")
-    plt.show()
-    
+        ax.set_title(tech_name_map.get(tech_code, tech_code), y=0.97, pad=1.5)
+
+        ax.grid(axis="y", linestyle="-", linewidth=0.5, alpha=0.35)
+        ax.grid(axis="x", visible=False)
+        ax.set_ylim(ymin, ymax)
+
+        for spine in ["top", "right"]:
+            ax.spines[spine].set_visible(False)
+        ax.spines["left"].set_linewidth(0.6)
+        ax.spines["bottom"].set_linewidth(0.6)
+
+        if col in [1, 2]:
+            ax.tick_params(axis="y", labelleft=False)
+            ax.set_ylabel("")
+
+        ax.set_xlabel("")
+        ax.tick_params(axis="x", rotation=0, pad=1)
+        ax.tick_params(axis="y", pad=1)
+
+    g.fig.set_size_inches(7.1, 6.8)
+    g.fig.subplots_adjust(
+        left=0.08,
+        right=0.995,
+        bottom=0.08,
+        top=0.95,
+        wspace=0.10,
+        hspace=0.26
+    )
+
     if save:
         out_path = os.path.join(PLOT_DIR, f"{key}.png")
-        plt.savefig(out_path, dpi=200, bbox_inches="tight")
+        g.fig.savefig(out_path, dpi=600, bbox_inches="tight")
+        print(f"Saved: {out_path}")
+
+    plt.show()
 
 
 # -------------------------------------------------------------------
@@ -1346,7 +1398,413 @@ def plot_boxplots_capacity_and_ratio(key, df_in=None, df_out=None, save=False):
         print(f"Saved: {out_path}")
 
     plt.show()
+    
+    
+def plot_boxplots_capacity_and_activity(key, df_in=None, df_out=None, save=False):
+    import os
+    import numpy as np
+    import pandas as pd
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Patch
 
+    if df_out is None:
+        raise ValueError("df_out must be provided.")
+
+    df = df_out.copy()
+
+    techs = [
+        "PWRSOL", "PWRWND", "BESS_TECH",
+        "PWRNGS", "PWRGEO", "PWRHYD",
+    ]
+
+    tech_name_map = {
+        "PWRSOL": "Solar",
+        "PWRWND": "Wind",
+        "BESS_TECH": "Battery storage",
+        "PWRNGS": "Natural gas",
+        "PWRGEO": "Geothermal",
+        "PWRHYD": "Hydro",
+    }
+
+    plot_years = [2030, 2035, 2040, 2045, 2050]
+
+    cap_list = []
+    act_list = []
+
+    for prefix in techs:
+        subset = df[df["TECHNOLOGY"].astype(str).str.contains(prefix, na=False)].copy()
+        if subset.empty:
+            continue
+
+        subset["YEAR"] = pd.to_numeric(subset["YEAR"], errors="coerce")
+        subset = subset[subset["YEAR"].isin(plot_years)].copy()
+        if subset.empty:
+            continue
+
+        # Capacity aggregation
+        cap_subset = subset[["Future.ID", "YEAR", "TotalCapacityAnnual"]].copy()
+        cap_subset["TotalCapacityAnnual"] = pd.to_numeric(
+            cap_subset["TotalCapacityAnnual"], errors="coerce"
+        )
+        cap_subset = cap_subset.dropna(subset=["Future.ID", "YEAR", "TotalCapacityAnnual"])
+
+        if not cap_subset.empty:
+            cap_grouped = (
+                cap_subset.groupby(["Future.ID", "YEAR"], as_index=False)["TotalCapacityAnnual"]
+                .sum()
+                .assign(TechGroup=prefix)
+            )
+            cap_list.append(cap_grouped)
+
+        # Activity aggregation
+        act_subset = subset[["Future.ID", "YEAR", "TotalTechnologyAnnualActivity"]].copy()
+        act_subset["TotalTechnologyAnnualActivity"] = pd.to_numeric(
+            act_subset["TotalTechnologyAnnualActivity"], errors="coerce"
+        )
+        act_subset = act_subset.dropna(
+            subset=["Future.ID", "YEAR", "TotalTechnologyAnnualActivity"]
+        )
+
+        if not act_subset.empty:
+            act_grouped = (
+                act_subset.groupby(["Future.ID", "YEAR"], as_index=False)["TotalTechnologyAnnualActivity"]
+                .sum()
+                .assign(TechGroup=prefix)
+            )
+            act_list.append(act_grouped)
+
+    if not cap_list:
+        raise ValueError("No capacity data found for the selected technologies and years.")
+
+    if not act_list:
+        raise ValueError("No activity data found for the selected technologies and years.")
+
+    df_cap = pd.concat(cap_list, ignore_index=True)
+    df_act = pd.concat(act_list, ignore_index=True)
+
+    df_all = pd.merge(
+        df_cap,
+        df_act,
+        on=["Future.ID", "YEAR", "TechGroup"],
+        how="outer"
+    )
+
+    sns.set_theme(style="whitegrid", context="paper")
+
+    plt.rcParams.update({
+        "font.size": 7,
+        "axes.titlesize": 8,
+        "axes.labelsize": 8,
+        "xtick.labelsize": 6.5,
+        "ytick.labelsize": 6.5,
+        "legend.fontsize": 7,
+        "axes.linewidth": 0.6,
+        "xtick.major.width": 0.6,
+        "ytick.major.width": 0.6,
+        "xtick.major.size": 2.5,
+        "ytick.major.size": 2.5,
+    })
+
+    ncols, nrows = 3, 2
+    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(7.1, 4.35))
+    axes = axes.flatten()
+
+    base_positions = np.arange(len(plot_years))
+    offset = 0.16
+    width = 0.24
+
+    palette = sns.color_palette("colorblind")
+    capacity_face = palette[0]
+    activity_face = palette[1]
+
+    left_ymax = df_cap["TotalCapacityAnnual"].max() * 1.03
+    right_ymax = df_act["TotalTechnologyAnnualActivity"].max() * 1.03
+
+    for i, prefix in enumerate(techs):
+        ax = axes[i]
+        ax2 = ax.twinx()
+
+        tech_df = df_all[df_all["TechGroup"] == prefix].copy()
+
+        cap_data = []
+        act_data = []
+
+        for yr in plot_years:
+            yr_df = tech_df[tech_df["YEAR"] == yr]
+
+            cap_vals = yr_df["TotalCapacityAnnual"].dropna().values
+            act_vals = yr_df["TotalTechnologyAnnualActivity"].dropna().values
+
+            cap_data.append(cap_vals if len(cap_vals) > 0 else np.array([np.nan]))
+            act_data.append(act_vals if len(act_vals) > 0 else np.array([np.nan]))
+
+        pos_cap = base_positions - offset
+        pos_act = base_positions + offset
+
+        ax.boxplot(
+            cap_data,
+            positions=pos_cap,
+            widths=width,
+            patch_artist=True,
+            whis=[1, 99],
+            showfliers=True,
+            boxprops=dict(facecolor=capacity_face, edgecolor="0.25", linewidth=0.5),
+            whiskerprops=dict(color="0.35", linewidth=0.5),
+            capprops=dict(color="0.35", linewidth=0.5),
+            medianprops=dict(color="0.10", linewidth=0.7),
+            flierprops=dict(
+                marker="o",
+                markersize=1.2,
+                markerfacecolor=capacity_face,
+                markeredgecolor=capacity_face,
+                alpha=0.7,
+            ),
+        )
+
+        ax2.boxplot(
+            act_data,
+            positions=pos_act,
+            widths=width,
+            patch_artist=True,
+            whis=[1, 99],
+            showfliers=True,
+            boxprops=dict(facecolor=activity_face, edgecolor="0.25", linewidth=0.5),
+            whiskerprops=dict(color="0.35", linewidth=0.5),
+            capprops=dict(color="0.35", linewidth=0.5),
+            medianprops=dict(color="0.10", linewidth=0.7),
+            flierprops=dict(
+                marker="o",
+                markersize=1.2,
+                markerfacecolor=activity_face,
+                markeredgecolor=activity_face,
+                alpha=0.7,
+            ),
+        )
+
+        ax.set_title(tech_name_map.get(prefix, prefix), y=0.97, pad=1.5)
+
+        ax.set_xlim(-0.6, len(plot_years) - 0.4)
+        ax.set_xticks(base_positions)
+        ax.set_xticklabels([str(y) for y in plot_years])
+
+        ax.set_ylim(0, left_ymax)
+        ax2.set_ylim(0, right_ymax)
+
+        ax.grid(axis="y", linestyle="-", linewidth=0.5, alpha=0.35)
+        ax.grid(axis="x", visible=False)
+        ax2.grid(False)
+
+        ax.spines["top"].set_visible(False)
+        ax2.spines["top"].set_visible(False)
+
+        ax.spines["left"].set_linewidth(0.6)
+        ax.spines["bottom"].set_linewidth(0.6)
+        ax2.spines["right"].set_linewidth(0.6)
+
+        col = i % ncols
+
+        if col == 0:
+            ax.set_ylabel("Capacity [GW]")
+        else:
+            ax.set_ylabel("")
+            ax.tick_params(axis="y", labelleft=False)
+
+        if col == 2:
+            ax2.set_ylabel("Activity [PJ]")
+        else:
+            ax2.set_ylabel("")
+            ax2.tick_params(axis="y", labelright=False)
+
+        ax.set_xlabel("")
+        ax.tick_params(axis="x", rotation=0, pad=1)
+        ax.tick_params(axis="y", pad=1)
+        ax2.tick_params(axis="y", pad=1)
+
+    for j in range(len(techs), len(axes)):
+        fig.delaxes(axes[j])
+
+    fig.legend(
+        handles=[
+            Patch(facecolor=capacity_face, edgecolor="0.25", label="Capacity"),
+            Patch(facecolor=activity_face, edgecolor="0.25", label="Activity"),
+        ],
+        loc="lower center",
+        ncol=2,
+        frameon=False,
+        bbox_to_anchor=(0.5, 0),
+        handlelength=1.4,
+        columnspacing=1.5,
+    )
+
+    fig.subplots_adjust(
+        left=0.08,
+        right=0.93,
+        bottom=0.12,
+        top=0.88,
+        wspace=0.16,
+        hspace=0.28,
+    )
+
+    if save:
+        out_path = os.path.join(PLOT_DIR, f"{key}.png")
+        fig.savefig(out_path, dpi=600, bbox_inches="tight")
+        print(f"Saved: {out_path}")
+
+    plt.show()
+    
+def plot_boxplots_gas_activity_to_capacity_ratio(key, df_in=None, df_out=None, save=False):
+    import os
+    import numpy as np
+    import pandas as pd
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+
+    if df_out is None:
+        raise ValueError("df_out must be provided.")
+
+    df = df_out.copy()
+    tech_prefix = "PWRNGS"
+
+    subset = df[df["TECHNOLOGY"].astype(str).str.contains(tech_prefix, na=False)].copy()
+
+    if subset.empty:
+        print("No PWRNGS technologies found.")
+        return
+
+    subset["YEAR"] = pd.to_numeric(subset["YEAR"], errors="coerce")
+
+    plot_years = [2030, 2035, 2040, 2045, 2050]
+    subset = subset[subset["YEAR"].isin(plot_years)].copy()
+
+    if subset.empty:
+        print("No PWRNGS data found for the selected years.")
+        return
+
+    # Aggregate capacity separately
+    cap_subset = subset[["Future.ID", "YEAR", "TotalCapacityAnnual"]].copy()
+    cap_subset["TotalCapacityAnnual"] = pd.to_numeric(
+        cap_subset["TotalCapacityAnnual"], errors="coerce"
+    )
+    cap_subset = cap_subset.dropna(subset=["Future.ID", "YEAR", "TotalCapacityAnnual"])
+
+    if cap_subset.empty:
+        print("No valid PWRNGS capacity data.")
+        return
+
+    df_cap = (
+        cap_subset.groupby(["Future.ID", "YEAR"], as_index=False)["TotalCapacityAnnual"]
+        .sum()
+    )
+
+    # Aggregate activity separately
+    act_subset = subset[["Future.ID", "YEAR", "TotalTechnologyAnnualActivity"]].copy()
+    act_subset["TotalTechnologyAnnualActivity"] = pd.to_numeric(
+        act_subset["TotalTechnologyAnnualActivity"], errors="coerce"
+    )
+    act_subset = act_subset.dropna(
+        subset=["Future.ID", "YEAR", "TotalTechnologyAnnualActivity"]
+    )
+
+    if act_subset.empty:
+        print("No valid PWRNGS activity data.")
+        return
+
+    df_act = (
+        act_subset.groupby(["Future.ID", "YEAR"], as_index=False)["TotalTechnologyAnnualActivity"]
+        .sum()
+    )
+
+    # Merge and compute ratio
+    grouped = pd.merge(
+        df_cap,
+        df_act,
+        on=["Future.ID", "YEAR"],
+        how="inner"
+    )
+
+    grouped = grouped[grouped["TotalCapacityAnnual"] > 0].copy()
+
+    if grouped.empty:
+        print("No overlapping PWRNGS capacity and activity data after aggregation.")
+        return
+
+    grouped["ActCapRatio"] = (
+        grouped["TotalTechnologyAnnualActivity"]
+        / (grouped["TotalCapacityAnnual"] * 31.356)
+    )
+
+    grouped = grouped.replace([np.inf, -np.inf], np.nan)
+    grouped = grouped.dropna(subset=["ActCapRatio"])
+
+    if grouped.empty:
+        print("No valid ratio values to plot.")
+        return
+
+    grouped["YEAR"] = grouped["YEAR"].astype(int).astype(str)
+    year_order = [str(y) for y in plot_years]
+
+    ymin = 0
+    ymax = grouped["ActCapRatio"].max() * 1.03
+
+    sns.set_theme(style="whitegrid", context="paper")
+
+    plt.rcParams.update({
+        "font.size": 7,
+        "axes.titlesize": 8,
+        "axes.labelsize": 8,
+        "xtick.labelsize": 6.5,
+        "ytick.labelsize": 6.5,
+        "legend.fontsize": 7,
+        "axes.linewidth": 0.6,
+        "xtick.major.width": 0.6,
+        "ytick.major.width": 0.6,
+        "xtick.major.size": 2.5,
+        "ytick.major.size": 2.5,
+    })
+
+    fig, ax = plt.subplots(figsize=(2.35, 1.95))
+
+    sns.boxplot(
+        data=grouped,
+        x="YEAR",
+        y="ActCapRatio",
+        order=year_order,
+        width=0.3,
+        whis=[1, 99],
+        fliersize=1.2,
+        linewidth=0.7,
+        boxprops={"edgecolor": "0.25", "linewidth": 0.5},
+        whiskerprops={"color": "0.35", "linewidth": 0.5},
+        capprops={"color": "0.35", "linewidth": 0.5},
+        medianprops={"color": "0.15", "linewidth": 0.7},
+        ax=ax,
+    )
+
+    ax.set_title("Natural gas", y=0.90, pad=1.5)
+    ax.set_xlabel("")
+    ax.set_ylabel("Activity / (capacity × 31.356)")
+    ax.set_ylim(ymin, ymax)
+
+    ax.grid(axis="y", linestyle="-", linewidth=0.5, alpha=0.35)
+    ax.grid(axis="x", visible=False)
+
+    for spine in ["top", "right"]:
+        ax.spines[spine].set_visible(False)
+    ax.spines["left"].set_linewidth(0.6)
+    ax.spines["bottom"].set_linewidth(0.6)
+
+    ax.tick_params(axis="x", rotation=0, pad=1)
+    ax.tick_params(axis="y", pad=1)
+
+    fig.tight_layout()
+
+    if save:
+        out_path = os.path.join(PLOT_DIR, f"{key}.png")
+        fig.savefig(out_path, dpi=600, bbox_inches="tight")
+        print(f"Saved: {out_path}")
+
+    plt.show()
 
 # -------------------------------------------------------------------
 # Main: select which plots to run
@@ -1364,6 +1822,8 @@ AVAILABLE_PLOTS = {
     "line_emissions":     plot_line_emissions,
     "box_captodemratio": plot_boxplots_capacity_to_peak_ratio,
     "box_cap_and_capdemratio": plot_boxplots_capacity_and_ratio,
+    "box_cap_and_act": plot_boxplots_capacity_and_activity,
+    "box_gas_acttocap": plot_boxplots_gas_activity_to_capacity_ratio,
 }
 
 
@@ -1375,18 +1835,20 @@ if __name__ == "__main__":
     
     # Edit this list to choose which plots to generate
     plots_to_run = [
-        "box_capacity",
+        # "box_capacity",
         # "box_activity",
         # "bar_gas_capacity",
         # "bar_gas_capacity_ratio",
         # "scatter_bess_gas",
-        # "line_demand",
+        "line_demand",
         # # "line_lcoe",
         # "line_gas_capex",
         # "line_total_capacity",
         # "line_emissions",
         # "box_captodemratio",
         # "box_cap_and_capdemratio",
+        # "box_cap_and_act",
+        # "box_gas_acttocap",
     ]
 
     for key in plots_to_run:

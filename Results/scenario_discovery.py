@@ -34,7 +34,7 @@ except Exception:
 INPUTS_PATH_DEFAULT = "OSEMOSYS_Energy_Input.csv"
 OUTPUTS_PATH_DEFAULT = "OSEMOSYS_Energy_Output.csv"
 OUTDIR_BASE = "scenario_discovery_artifacts"
-YEAR = 2040
+YEAR = 2050
 RANDOM_STATE = 42
 
 os.makedirs(OUTDIR_BASE, exist_ok=True)
@@ -169,7 +169,7 @@ def build_features(inputs: pd.DataFrame) -> pd.DataFrame:
         # (11) DiscountRateIdv for solar (PWRSOL) in 2050
         if {"TECHNOLOGY", "YEAR", "DiscountRateIdv"}.issubset(sub.columns):
             bat50 = sub.loc[
-                (sub["TECHNOLOGY"].astype(str).str.startswith("PWRSOL"))
+                (sub["TECHNOLOGY"].astype(str).str.startswith("PWRSOL001"))
                 & (sub["YEAR"] == YEAR)
             ]
             vals = to_num(bat50["DiscountRateIdv"])
@@ -274,10 +274,10 @@ def run_cart(df: pd.DataFrame, feature_cols: List[str], outdir: str) -> None:
     )
 
     grid = {
-        "max_depth": [2, 3, 4, 5, None],
-        "min_samples_leaf": [1, 2, 5, 10],
-        "min_samples_split": [2, 5, 10],
-        "criterion": ["gini", "entropy"],
+        "max_depth": [4, 5, 6, 8, 10, None],
+        "min_samples_leaf": [1, 2, 3],
+        "min_samples_split": [2, 3, 5],
+        "criterion": ["entropy"], # ["gini", "entropy"]
         "class_weight": ["balanced"],
         "random_state": [RANDOM_STATE],
     }

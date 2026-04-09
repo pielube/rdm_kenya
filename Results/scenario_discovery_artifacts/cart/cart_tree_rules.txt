@@ -1,7 +1,43 @@
-|--- capex_bess_2050_mean <= 530.12
-|   |--- capex_wind_2050_mean <= 1105.35
+|--- capex_bess_2050_mean <= 796.97
+|   |--- discount_rate_impngs_2050 <= 0.06
+|   |   |--- capex_bess_2050_mean <= 534.21
+|   |   |   |--- class: 0
+|   |   |--- capex_bess_2050_mean >  534.21
+|   |   |   |--- discount_rate_solar_2050 <= 0.09
+|   |   |   |   |--- class: 0
+|   |   |   |--- discount_rate_solar_2050 >  0.09
+|   |   |   |   |--- capex_solar_2050_mean <= 860.78
+|   |   |   |   |   |--- capex_wind_2050_mean <= 1317.87
+|   |   |   |   |   |   |--- class: 0
+|   |   |   |   |   |--- capex_wind_2050_mean >  1317.87
+|   |   |   |   |   |   |--- class: 1
+|   |   |   |   |--- capex_solar_2050_mean >  860.78
+|   |   |   |   |   |--- class: 1
+|   |--- discount_rate_impngs_2050 >  0.06
 |   |   |--- class: 0
-|   |--- capex_wind_2050_mean >  1105.35
-|   |   |--- class: 0
-|--- capex_bess_2050_mean >  530.12
-|   |--- class: 1
+|--- capex_bess_2050_mean >  796.97
+|   |--- discount_rate_wind_2050 <= 0.07
+|   |   |--- discount_rate_impngs_2050 <= 0.06
+|   |   |   |--- capex_wind_2050_mean <= 898.47
+|   |   |   |   |--- class: 0
+|   |   |   |--- capex_wind_2050_mean >  898.47
+|   |   |   |   |--- class: 1
+|   |   |--- discount_rate_impngs_2050 >  0.06
+|   |   |   |--- maxcap_geo006_2050_mean <= 4.40
+|   |   |   |   |--- class: 0
+|   |   |   |--- maxcap_geo006_2050_mean >  4.40
+|   |   |   |   |--- class: 0
+|   |--- discount_rate_wind_2050 >  0.07
+|   |   |--- discount_rate_impngs_2050 <= 0.11
+|   |   |   |--- class: 1
+|   |   |--- discount_rate_impngs_2050 >  0.11
+|   |   |   |--- discount_rate_wind_2050 <= 0.12
+|   |   |   |   |--- capex_wind_2050_mean <= 2133.18
+|   |   |   |   |   |--- class: 0
+|   |   |   |   |--- capex_wind_2050_mean >  2133.18
+|   |   |   |   |   |--- class: 1
+|   |   |   |--- discount_rate_wind_2050 >  0.12
+|   |   |   |   |--- discount_rate_impngs_2050 <= 0.19
+|   |   |   |   |   |--- class: 1
+|   |   |   |   |--- discount_rate_impngs_2050 >  0.19
+|   |   |   |   |   |--- class: 0
